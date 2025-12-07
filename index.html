@@ -26,16 +26,27 @@
             display: grid;
             grid-template-columns: repeat(8, 1fr);
             grid-template-rows: repeat(8, 1fr);
+            
+            /* MOBILE DEFAULT SIZE (Agar muat dengan tombol) */
             width: 90vw;
             height: 90vw;
-            max-width: 65vh;
-            max-height: 65vh;
+            max-width: 48vh; 
+            max-height: 48vh;
+            
             margin: 0 auto;
             border: 3px solid #334155;
             user-select: none;
             touch-action: none; 
             position: relative;
             background-color: #334155;
+        }
+
+        /* DESKTOP/TABLET SIZE */
+        @media (min-width: 768px) {
+            .chess-board {
+                max-width: 75vh;
+                max-height: 75vh;
+            }
         }
 
         #arrow-layer {
@@ -176,8 +187,9 @@
 
         <!-- 3. GAME -->
         <div id="screen-game" class="absolute inset-0 bg-slate-900 hidden flex flex-col md:flex-row z-[40]">
-            <div class="flex-1 flex flex-col items-center justify-center p-2 relative bg-slate-900">
-                <div class="w-[90vw] max-w-[65vh] flex justify-between items-end mb-2 px-1">
+            <!-- Board Container (Top/Left) -->
+            <div class="flex-1 flex flex-col items-center justify-center p-2 relative bg-slate-900 overflow-hidden min-h-0">
+                <div class="w-[90vw] md:w-full md:max-w-[75vh] flex justify-between items-end mb-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-slate-700 border border-slate-500 flex items-center justify-center"><i class="fas fa-user text-slate-400"></i></div>
                         <div>
@@ -193,7 +205,7 @@
                     <!-- SVG will be injected -->
                 </div>
 
-                <div class="w-[90vw] max-w-[65vh] flex justify-between items-start mt-2 px-1">
+                <div class="w-[90vw] md:w-full md:max-w-[75vh] flex justify-between items-start mt-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-indigo-900 border border-indigo-500 flex items-center justify-center"><i class="fas fa-user text-indigo-300"></i></div>
                         <div>
@@ -208,8 +220,9 @@
                 </div>
             </div>
 
+            <!-- Controls Container (Bottom/Right) -->
             <div class="w-full md:w-[350px] bg-slate-800 border-l border-slate-700 flex flex-col h-[40vh] md:h-full shrink-0 shadow-xl z-20">
-                <div class="flex bg-slate-900 border-b border-slate-700">
+                <div class="flex bg-slate-900 border-b border-slate-700 shrink-0">
                     <button class="flex-1 py-2 text-xs font-bold text-blue-400 border-b-2 border-blue-500 uppercase">Langkah</button>
                     <button class="flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 uppercase" onclick="alert('Chat segera hadir!')">Chat</button>
                 </div>
@@ -221,7 +234,7 @@
                         <tbody id="move-history" class="text-slate-300 font-mono"></tbody>
                     </table>
                 </div>
-                <div class="bg-slate-850 p-3 border-t border-slate-700">
+                <div class="bg-slate-850 p-3 border-t border-slate-700 shrink-0">
                     
                     <!-- Kontrol Main -->
                     <div id="play-controls" class="grid grid-cols-4 gap-2 mb-2">
@@ -230,14 +243,14 @@
                         <button onclick="confirmResign()" class="bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 py-2 rounded col-span-2 text-xs font-bold"><i class="fas fa-flag"></i> MENYERAH</button>
                     </div>
 
-                    <!-- Kontrol Analisis (Hilang sebelumnya, sekarang diperbaiki) -->
+                    <!-- Kontrol Analisis -->
                     <div id="analysis-controls" class="hidden flex-col gap-2">
                         <div class="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-700">
-                             <span class="text-xs font-bold text-blue-400">EVALUASI</span>
+                             <span class="text-xs font-bold text-blue-400">ANALISIS (Gerakkan Bidak)</span>
                              <span id="eval-score" class="text-xs font-mono text-white">0.0</span>
                         </div>
                         <div class="eval-bar-container"><div id="eval-fill" class="eval-bar-fill"></div></div>
-                        <p id="best-move-text" class="text-[10px] text-slate-400 italic text-center min-h-[16px] mt-1"></p>
+                        <p id="best-move-text" class="text-[10px] text-slate-400 italic text-center min-h-[16px] mt-1">...</p>
                         <button onclick="exitGame()" class="w-full bg-slate-600 hover:bg-slate-500 text-white py-2 rounded font-bold text-sm"><i class="fas fa-arrow-left"></i> KEMBALI KE LOBBY</button>
                     </div>
                 </div>
@@ -287,16 +300,16 @@
         let isAI = false;
         let isAnalysisMode = false;
         let viewHistoryIndex = -1;
-        let isReplayMode = false; // Flag untuk mode replay dari history
+        let isReplayMode = false;
         
-        // Audio
+        // Audio (Lichess Assets - Louder)
         const audioFiles = {
-            move: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-self.mp3'),
-            capture: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/capture.mp3'),
-            check: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-check.mp3'),
-            start: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-start.mp3'),
-            end: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-end.mp3'),
-            notify: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/notify.mp3')
+            move: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-self.mp3',
+            capture: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/capture.mp3',
+            check: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-check.mp3',
+            start: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-start.mp3',
+            end: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-end.mp3',
+            notify: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/notify.mp3'
         };
 
         function getPieceUrl(color, type) {
@@ -387,33 +400,34 @@
         }
 
         function loadReplayGame(game) {
-            // Setup replay mode
-            currentGameId = null; // No live id
+            currentGameId = null;
             isReplayMode = true;
             isAnalysisMode = true;
             boardOrientation = 'white';
             
-            // PGN Logic: jika history tersimpan dengan PGN, load. Jika tidak, hanya FEN akhir (limitasi versi lama)
-            // Untuk versi ini kita asumsikan simpan PGN nanti.
-            // Jika data lama belum ada PGN, tampilkan pesan.
             if (!game.pgn) {
                 alert("Maaf, riwayat lama tidak memiliki data langkah lengkap (PGN).");
                 return;
             }
 
             chess.load_pgn(game.pgn);
-            viewHistoryIndex = -1; // Start at end
+            viewHistoryIndex = -1;
             
             document.getElementById('opponent-name').innerText = game.opponent;
             document.getElementById('player-name-display').innerText = localStorage.getItem('chess_username');
             
             showScreen('game');
-            // Hide play controls, show analysis
             document.getElementById('play-controls').classList.add('hidden');
             document.getElementById('analysis-controls').classList.remove('hidden');
             
             renderBoard();
             updateMoveHistoryUI();
+            
+            // Trigger analysis
+            if(stockfishWorker) {
+                stockfishWorker.postMessage('position fen ' + chess.fen());
+                stockfishWorker.postMessage('go depth 15');
+            }
         }
 
         // --- ARROWS & BOARD DRAWING ---
@@ -567,16 +581,7 @@
             if (viewHistoryIndex !== -1) {
                 try {
                     const tempChess = new Chess();
-                    // Load entire history to get correct state
-                    // Jika mode replay dan ada PGN, load dari awal
                     if(isReplayMode || chess.pgn().length > 0) {
-                        const tempForMoves = new Chess();
-                        if(isReplayMode && !currentGameId) { 
-                            // Replay from local storage data already loaded in chess
-                        } else {
-                            // Live game history
-                        }
-                        // Simplest: just use the main chess object history
                         const history = chess.history();
                         for(let i=0; i<=viewHistoryIndex; i++) tempChess.move(history[i]);
                         boardState = tempChess.board();
@@ -616,7 +621,7 @@
                         const img = document.createElement('div');
                         img.className = 'piece';
                         img.style.backgroundImage = `url('${getPieceUrl(piece.color, piece.type)}')`;
-                        if (viewHistoryIndex === -1 && piece.color === boardOrientation.charAt(0)) {
+                        if (viewHistoryIndex === -1 && (isAnalysisMode || piece.color === boardOrientation.charAt(0))) {
                             img.addEventListener('mousedown', (e) => { if(e.button===0) startDrag(e, square, img); });
                             img.addEventListener('touchstart', (e) => startDrag(e, square, img), {passive:false});
                         }
@@ -636,23 +641,32 @@
         function onSquareClick(square) {
             if (arrows.length > 0 || circleHighlights.length > 0) clearArrowsAndHighlights();
             if (premove) { premove = null; renderBoard(); }
-            if (isAnalysisMode && !isReplayMode) return; // Analysis mode tapi bukan replay (post-game)
-            if (viewHistoryIndex !== -1 || isDragging) return;
             
-            const piece = chess.get(square);
-            const myColor = boardOrientation.charAt(0);
+            // Allow clicking in analysis mode to move pieces
+            if (isAnalysisMode || (!isReplayMode && viewHistoryIndex === -1 && !isDragging)) {
+                const piece = chess.get(square);
+                // Allow selecting any piece in analysis mode
+                const myColor = isAnalysisMode ? (piece ? piece.color : null) : boardOrientation.charAt(0);
 
-            if (selectedSquare === null) {
-                if (piece && piece.color === myColor) { selectedSquare = square; renderBoard(); }
-            } else {
-                if (selectedSquare === square) { selectedSquare = null; renderBoard(); return; }
-                if (piece && piece.color === myColor) { selectedSquare = square; renderBoard(); return; }
-                handleMoveAttempt(selectedSquare, square);
+                if (selectedSquare === null) {
+                    // Logic to select piece
+                    if (piece && (isAnalysisMode || piece.color === myColor)) { 
+                        selectedSquare = square; renderBoard(); 
+                    }
+                } else {
+                    if (selectedSquare === square) { selectedSquare = null; renderBoard(); return; }
+                    // Switch selection if clicking another friendly piece
+                    if (piece && (isAnalysisMode ? piece.color === chess.turn() : piece.color === myColor)) { 
+                        selectedSquare = square; renderBoard(); return; 
+                    }
+                    handleMoveAttempt(selectedSquare, square);
+                }
             }
         }
 
         function startDrag(e, square, el) {
-            if (isAnalysisMode || viewHistoryIndex !== -1) return;
+            // Allow drag in analysis mode too
+            if (!isAnalysisMode && viewHistoryIndex !== -1) return;
             e.preventDefault(); isDragging = true; dragStartSquare = square; draggedPiece = el;
             onSquareClick(square); 
             const ghost = document.getElementById('drag-ghost');
@@ -683,6 +697,26 @@
         }
 
         function handleMoveAttempt(from, to) {
+            // ANALYSIS MODE MOVE LOGIC
+            if (isAnalysisMode) {
+                const move = chess.move({ from, to, promotion: 'q' });
+                selectedSquare = null;
+                if (move) {
+                    renderBoard();
+                    updateMoveHistoryUI();
+                    playSound('move');
+                    // Trigger Stockfish evaluation for the new position
+                    if(stockfishWorker) {
+                        stockfishWorker.postMessage('position fen ' + chess.fen());
+                        stockfishWorker.postMessage('go depth 15');
+                    }
+                } else {
+                    renderBoard();
+                }
+                return; // Stop here, don't send to firestore
+            }
+
+            // GAMEPLAY MOVE LOGIC
             const myTurn = chess.turn() === boardOrientation.charAt(0);
             if (myTurn) {
                 const move = chess.move({ from, to, promotion: 'q' });
@@ -714,14 +748,28 @@
             else { const moves = chess.moves(); chess.move(moves[Math.floor(Math.random()*moves.length)]); renderBoard(); updateMoveHistoryUI(); checkGameOver(true); }
         }
         function handleStockfishMessage(e) {
+            // Handling AI Move
             if(window.awaitingAI && e.data.startsWith('bestmove')) {
-                window.awaitingAI = false; chess.move(e.data.split(' ')[1], {sloppy:true}); renderBoard(); updateMoveHistoryUI(); 
+                window.awaitingAI = false; 
+                chess.move(e.data.split(' ')[1], {sloppy:true}); 
+                renderBoard(); updateMoveHistoryUI(); 
                 if(chess.in_check()) playSound('check'); else playSound('move'); checkGameOver(true);
             }
-            if(isAnalysisMode && e.data.startsWith('info') && e.data.includes('score cp')) {
+            // Handling Analysis Eval
+            if(e.data.startsWith('info') && e.data.includes('score cp')) {
                 const m = e.data.match(/score cp (-?\d+)/); 
-                if(m) { let cp = parseInt(m[1]); if(chess.turn()==='b') cp = -cp; 
-                document.getElementById('eval-fill').style.width = Math.max(5,Math.min(95,50+(cp/10))) + '%'; document.getElementById('eval-score').innerText=(cp/100).toFixed(1); }
+                if(m) { 
+                    let cp = parseInt(m[1]); 
+                    if(chess.turn()==='b') cp = -cp; 
+                    // Update UI
+                    const width = Math.max(5, Math.min(95, 50 + (cp/10)));
+                    document.getElementById('eval-fill').style.width = width + '%'; 
+                    document.getElementById('eval-score').innerText = (cp/100).toFixed(2);
+                }
+            }
+            if(isAnalysisMode && e.data.startsWith('bestmove')) {
+                 const best = e.data.split(' ')[1];
+                 document.getElementById('best-move-text').innerText = "Saran Terbaik: " + best;
             }
         }
 
@@ -745,18 +793,23 @@
             const hist = JSON.parse(localStorage.getItem('chess_history') || '[]');
             const oppName = document.getElementById('opponent-name').innerText;
             const last = hist[hist.length-1];
+            // Simple check to avoid duplicates immediately
             if(!last || (Date.now() - new Date(last.date).getTime() > 5000)) {
                 hist.push({ date: new Date().toISOString(), opponent: oppName, result: res, pgn: chess.pgn() });
                 localStorage.setItem('chess_history', JSON.stringify(hist));
             }
 
+            // Switch to Analysis Mode UI
             document.getElementById('play-controls').classList.add('hidden'); 
             document.getElementById('analysis-controls').classList.remove('hidden'); 
+            
             isAnalysisMode=true; 
-            if(stockfishWorker) stockfishWorker.postMessage('position fen '+chess.fen()); 
+            if(stockfishWorker) {
+                stockfishWorker.postMessage('position fen '+chess.fen());
+                stockfishWorker.postMessage('go depth 15');
+            }
         }
         
-        // --- TAKEBACK LOGIC BARU ---
         async function reqTakeback() { 
             if(isAI) { 
                 chess.undo(); chess.undo(); 
@@ -769,23 +822,12 @@
         async function respondRequest(acc) {
             document.getElementById('modal-request').classList.add('hidden');
             if(acc && gameData.requests.type==='takeback') {
-                // Logika Mundur Cerdas
                 const sender = gameData.requests.sender;
                 const requesterColor = (sender === gameData.white.id) ? 'w' : 'b';
-                
-                // Gunakan instance sementara untuk simulasi
                 const temp = new Chess();
                 temp.load_pgn(chess.pgn());
-                
-                // Mundur 1 kali (batalkan langkah terakhir)
                 temp.undo();
-                
-                // Jika setelah mundur 1x, giliran TIDAK SAMA dengan requester, mundur lagi
-                // Contoh: Putih minta mundur. Sekarang giliran Hitam. Mundur 1x -> Giliran Putih (OK).
-                // Contoh: Putih minta mundur. Sekarang giliran Putih (Hitam baru jalan). Mundur 1x -> Giliran Hitam (Belum OK). Mundur 1x lagi -> Giliran Putih (OK).
-                if (temp.turn() !== requesterColor) {
-                    temp.undo();
-                }
+                if (temp.turn() !== requesterColor) temp.undo();
                 
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
                     fen:temp.fen(), pgn:temp.pgn(), requests:{status:'accepted'}
@@ -797,7 +839,6 @@
             }
         }
 
-        // Helper & Utils
         async function reqDraw() { if(confirm("Ajukan remis?")) sendRequest('draw'); }
         function confirmResign() { showModalConfirm("Menyerah?", "Yakin?", () => { handleGameOver('loss'); if(!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner: document.getElementById('opponent-name').innerText}); }); }
         async function sendRequest(t) { await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{type:t, sender:currentUser.uid, status:'pending'}}); alert("Terkirim"); }
@@ -810,7 +851,14 @@
             else { el.innerText="GILIRAN LAWAN"; el.className="text-xs font-bold text-slate-500"; }
             document.getElementById('game-status').innerText = chess.in_check() ? "SKAK!" : "";
         }
-        function playSound(t) { if(soundEnabled && audioFiles[t]) { audioFiles[t].currentTime=0; audioFiles[t].play().catch(()=>{}); } }
+        function playSound(t) { 
+            if(soundEnabled && audioFiles[t]) { 
+                // Overlap sound fix: Clone node
+                const snd = new Audio(audioFiles[t]);
+                snd.volume = 1.0;
+                snd.play().catch(()=>{}); 
+            } 
+        }
         function showModalConfirm(t,m,y) { document.getElementById('modal-title').innerText=t; document.getElementById('modal-message').innerText=m; document.getElementById('modal-yes-btn').onclick=()=>{y();closeModal();}; document.getElementById('modal-confirm').classList.remove('hidden'); }
         function closeModal() { document.querySelectorAll('.modal-overlay').forEach(e=>e.classList.add('hidden')); }
         function showScreen(id) { ['screen-login','screen-lobby','screen-game'].forEach(s=>document.getElementById(s).classList.add('hidden')); document.getElementById('screen-'+id).classList.remove('hidden'); }
@@ -831,7 +879,7 @@
             isReplayMode = false;
             showScreen('lobby');
             listenToLobby();
-            loadHistory(); // Reload history to update list
+            loadHistory(); 
         }
 
         initApp();
