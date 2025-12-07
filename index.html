@@ -22,7 +22,6 @@
         
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
         
-        /* --- BOARD STYLING (HIGH CONTRAST) --- */
         .chess-board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
@@ -34,71 +33,59 @@
             margin: 0 auto;
             border: 3px solid #334155;
             user-select: none;
-            touch-action: none; /* Mencegah scroll saat drag di HP */
+            touch-action: none; 
             position: relative;
+            background-color: #334155;
+        }
+
+        #arrow-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
         }
 
         .square {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            width: 100%;
-            height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            position: relative; width: 100%; height: 100%; z-index: 1;
         }
 
-        /* Warna High Contrast (Blue Theme) */
         .square.white { background-color: #ebecd0; }
         .square.black { background-color: #739552; }
         
-        /* Highlights */
-        .square.selected { background-color: #f5f682 !important; } /* Kuning terang */
-        .square.last-move { background-color: #baca44 !important; } /* Hijau stabilo */
-        .square.premove { background-color: #f43f5e !important; opacity: 0.8; } /* Merah untuk premove */
-        .square.viewing-history { background-color: #64748b !important; opacity: 0.7; }
+        .square.selected { background-color: #f5f682 !important; } 
+        .square.last-move { background-color: #baca44 !important; } 
+        .square.premove { background-color: #f43f5e !important; opacity: 0.8; }
+        .square.viewing-history { background-color: #64748b !important; opacity: 0.8; }
+        .square.in-check { background: radial-gradient(ellipse at center, #ef4444 0%, #ef4444 40%, transparent 80%) !important; }
 
-        /* Dot Langkah Valid */
         .square.possible-move::after {
-            content: '';
-            width: 30%;
-            height: 30%;
-            background-color: rgba(0, 0, 0, 0.3);
-            border-radius: 50%;
-            position: absolute;
-            pointer-events: none;
+            content: ''; width: 30%; height: 30%;
+            background-color: rgba(0, 0, 0, 0.3); border-radius: 50%;
+            position: absolute; pointer-events: none; z-index: 2;
         }
         
-        /* Bidak */
         .piece {
-            width: 100%;
-            height: 100%;
-            background-size: 85%; /* Sedikit lebih kecil agar rapi */
-            background-repeat: no-repeat;
-            background-position: center;
-            cursor: grab;
-            z-index: 10;
+            width: 100%; height: 100%;
+            background-size: 85%; background-repeat: no-repeat; background-position: center;
+            cursor: grab; z-index: 10; 
         }
         .piece.dragging { opacity: 0.5; }
 
-        /* Ghost Piece saat Drag */
+        .circle-highlight::before {
+            content: ''; position: absolute; width: 90%; height: 90%;
+            border-radius: 50%; background-color: rgba(255, 170, 0, 0.5);
+            pointer-events: none; z-index: 4;
+        }
+
         #drag-ghost {
-            position: fixed;
-            width: 60px;
-            height: 60px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            pointer-events: none;
-            z-index: 9999;
-            display: none;
+            position: fixed; width: 60px; height: 60px;
+            background-size: contain; background-repeat: no-repeat;
+            pointer-events: none; z-index: 9999; display: none;
             transform: translate(-50%, -50%);
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         
-        /* Modal Overlay */
         .modal-overlay {
             position: absolute; inset: 0; background: rgba(0,0,0,0.8); 
             display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -107,13 +94,11 @@
         .active-history { background-color: #3b82f6; color: white; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col bg-slate-900">
+<body class="h-screen w-screen flex flex-col bg-slate-900" oncontextmenu="return false;"> 
 
-    <!-- Ghost Element for Dragging -->
     <div id="drag-ghost"></div>
 
     <!-- MODALS -->
-    <!-- Modal Konfirmasi Umum (Resign/Draw) -->
     <div id="modal-confirm" class="modal-overlay hidden">
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm w-full text-center">
             <h3 id="modal-title" class="text-xl font-bold text-white mb-2">Konfirmasi</h3>
@@ -125,7 +110,6 @@
         </div>
     </div>
 
-    <!-- Modal Terima Permintaan (Takeback/Draw Offer) -->
     <div id="modal-request" class="modal-overlay hidden">
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm w-full text-center animate-bounce">
             <i class="fas fa-bell text-yellow-400 text-3xl mb-3"></i>
@@ -145,6 +129,9 @@
             <h1 class="text-lg font-bold text-white tracking-wide hidden sm:block">Catur Master Pro</h1>
         </div>
         <div class="flex items-center gap-3">
+            <button id="sound-toggle" onclick="toggleSound()" class="text-slate-400 hover:text-white px-2">
+                <i class="fas fa-volume-up"></i>
+            </button>
             <div id="connection-status" class="text-[10px] px-2 py-1 rounded bg-red-900 text-red-200 animate-pulse font-mono">...</div>
             <span id="user-display" class="text-sm text-slate-300 font-semibold truncate max-w-[100px]"></span>
             <button onclick="logout()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-white border border-slate-600">Keluar</button>
@@ -154,19 +141,17 @@
     <!-- Main Content -->
     <main class="flex-1 relative w-full h-full overflow-hidden flex flex-col md:flex-row">
         
-        <!-- 1. LOGIN SCREEN -->
+        <!-- 1. LOGIN -->
         <div id="screen-login" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4 z-[60]">
             <div class="bg-slate-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border border-slate-700 text-center">
                 <i class="fas fa-chess text-5xl text-yellow-500 mb-6"></i>
                 <h2 class="text-2xl font-bold mb-2 text-white">Selamat Datang</h2>
                 <input type="text" id="username-input" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-4 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Nama Panggilan...">
-                <button onclick="handleLogin()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 rounded-lg shadow-lg">
-                    Masuk
-                </button>
+                <button onclick="handleLogin()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 rounded-lg shadow-lg">Masuk</button>
             </div>
         </div>
 
-        <!-- 2. LOBBY SCREEN -->
+        <!-- 2. LOBBY -->
         <div id="screen-lobby" class="absolute inset-0 bg-slate-900 hidden flex flex-col z-[50]">
             <div class="w-full max-w-6xl mx-auto flex flex-col h-full p-4">
                 <div class="flex justify-between items-center mb-4 bg-slate-800 p-4 rounded-lg border border-slate-700">
@@ -182,19 +167,16 @@
                         <div id="room-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
                     </div>
                     <div class="bg-slate-800 rounded-lg border border-slate-700 flex flex-col overflow-hidden">
-                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700">Riwayat Lokal</div>
+                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700">Riwayat Lokal (Klik untuk Analisis)</div>
                         <div id="history-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. GAME SCREEN -->
+        <!-- 3. GAME -->
         <div id="screen-game" class="absolute inset-0 bg-slate-900 hidden flex flex-col md:flex-row z-[40]">
-            
-            <!-- BOARD AREA (LEFT/TOP) -->
             <div class="flex-1 flex flex-col items-center justify-center p-2 relative bg-slate-900">
-                <!-- Info Lawan -->
                 <div class="w-[90vw] max-w-[65vh] flex justify-between items-end mb-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-slate-700 border border-slate-500 flex items-center justify-center"><i class="fas fa-user text-slate-400"></i></div>
@@ -207,9 +189,10 @@
                 </div>
 
                 <!-- CHESS BOARD -->
-                <div id="chess-board" class="chess-board rounded shadow-2xl"></div>
+                <div id="chess-board" class="chess-board rounded shadow-2xl">
+                    <!-- SVG will be injected -->
+                </div>
 
-                <!-- Info Kita -->
                 <div class="w-[90vw] max-w-[65vh] flex justify-between items-start mt-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-indigo-900 border border-indigo-500 flex items-center justify-center"><i class="fas fa-user text-indigo-300"></i></div>
@@ -225,54 +208,37 @@
                 </div>
             </div>
 
-            <!-- CONTROLS AREA (RIGHT/BOTTOM) -->
             <div class="w-full md:w-[350px] bg-slate-800 border-l border-slate-700 flex flex-col h-[40vh] md:h-full shrink-0 shadow-xl z-20">
-                
-                <!-- Tab Langkah -->
                 <div class="flex bg-slate-900 border-b border-slate-700">
                     <button class="flex-1 py-2 text-xs font-bold text-blue-400 border-b-2 border-blue-500 uppercase">Langkah</button>
                     <button class="flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 uppercase" onclick="alert('Chat segera hadir!')">Chat</button>
                 </div>
-
-                <!-- Move List -->
                 <div class="flex-1 overflow-y-auto bg-slate-800 p-0" id="pgn-container">
                     <table class="w-full text-sm text-left border-collapse">
                         <thead class="bg-slate-850 text-slate-500 text-[10px] uppercase sticky top-0">
                             <tr><th class="px-2 py-1 w-8">#</th><th class="px-2 py-1">Putih</th><th class="px-2 py-1">Hitam</th></tr>
                         </thead>
-                        <tbody id="move-history" class="text-slate-300 font-mono">
-                            <!-- Moves Injected Here -->
-                        </tbody>
+                        <tbody id="move-history" class="text-slate-300 font-mono"></tbody>
                     </table>
                 </div>
-
-                <!-- Action Buttons -->
                 <div class="bg-slate-850 p-3 border-t border-slate-700">
                     
-                    <!-- Game Controls (Play Mode) -->
+                    <!-- Kontrol Main -->
                     <div id="play-controls" class="grid grid-cols-4 gap-2 mb-2">
-                        <button onclick="reqTakeback()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Mundur Langkah">
-                            <i class="fas fa-undo-alt"></i>
-                        </button>
-                        <button onclick="reqDraw()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Ajukan Remis">
-                            <i class="fas fa-handshake"></i>
-                        </button>
-                        <button onclick="confirmResign()" class="bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 py-2 rounded col-span-2 text-xs font-bold">
-                            <i class="fas fa-flag"></i> MENYERAH
-                        </button>
+                        <button onclick="reqTakeback()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Mundur Langkah"><i class="fas fa-undo-alt"></i></button>
+                        <button onclick="reqDraw()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Ajukan Remis"><i class="fas fa-handshake"></i></button>
+                        <button onclick="confirmResign()" class="bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 py-2 rounded col-span-2 text-xs font-bold"><i class="fas fa-flag"></i> MENYERAH</button>
                     </div>
 
-                    <!-- Analysis Controls (Post Game / Spectate) -->
+                    <!-- Kontrol Analisis (Hilang sebelumnya, sekarang diperbaiki) -->
                     <div id="analysis-controls" class="hidden flex-col gap-2">
                         <div class="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-700">
-                             <span class="text-xs font-bold text-blue-400">STOCKFISH EVAL</span>
+                             <span class="text-xs font-bold text-blue-400">EVALUASI</span>
                              <span id="eval-score" class="text-xs font-mono text-white">0.0</span>
                         </div>
                         <div class="eval-bar-container"><div id="eval-fill" class="eval-bar-fill"></div></div>
                         <p id="best-move-text" class="text-[10px] text-slate-400 italic text-center min-h-[16px] mt-1"></p>
-                        <button onclick="exitGame()" class="w-full bg-slate-600 hover:bg-slate-500 text-white py-2 rounded font-bold text-sm">
-                            <i class="fas fa-arrow-left"></i> KEMBALI
-                        </button>
+                        <button onclick="exitGame()" class="w-full bg-slate-600 hover:bg-slate-500 text-white py-2 rounded font-bold text-sm"><i class="fas fa-arrow-left"></i> KEMBALI KE LOBBY</button>
                     </div>
                 </div>
             </div>
@@ -280,7 +246,7 @@
     </main>
 
     <script>
-        // --- KONFIGURASI FIREBASE ---
+        // CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyDmer19KTaijOz3bTdknEEs5dqwKNt6HQg",
             authDomain: "masjid-pekalongan.firebaseapp.com",
@@ -290,39 +256,51 @@
             appId: "1:619031365600:web:35061354a11cf3f72e4d85",
             measurementId: "G-R511G99W8R"
         };
-        
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         const appId = 'chess-v3-final';
 
-        // --- GLOBAL STATE ---
-        let currentUser = null;
-        let currentGameId = null;
-        let gameData = null; 
+        // STATE
+        let currentUser, currentGameId, gameData;
         let chess = new Chess();
         let boardOrientation = 'white';
-        
+        let stockfishWorker = null;
+        let gameUnsubscribe = null; 
+        let soundEnabled = true;
+
         // Interaction State
         let selectedSquare = null;
-        let premove = null; // {from, to}
+        let premove = null; 
         let draggedPiece = null;
         let isDragging = false;
         let dragStartSquare = null;
         
+        // Arrow & Highlights State
+        let arrows = [];
+        let circleHighlights = []; 
+        let isRightClicking = false;
+        let rightClickStart = null;
+        let rightClickCurrent = null;
+
         // View State
         let isAI = false;
         let isAnalysisMode = false;
-        let viewHistoryIndex = -1; // -1 = Live
-        let moveHistoryArray = []; // Full history for navigation
+        let viewHistoryIndex = -1;
+        let isReplayMode = false; // Flag untuk mode replay dari history
         
-        // Stockfish
-        let stockfishWorker = null;
+        // Audio
+        const audioFiles = {
+            move: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-self.mp3'),
+            capture: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/capture.mp3'),
+            check: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-check.mp3'),
+            start: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-start.mp3'),
+            end: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-end.mp3'),
+            notify: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/notify.mp3')
+        };
 
-        // Assets
         function getPieceUrl(color, type) {
-            const baseUrl = "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/";
-            return `${baseUrl}${color}${type}.png`;
+            return `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${color}${type}.png`;
         }
 
         // --- INIT ---
@@ -340,18 +318,28 @@
                 if (user) {
                     currentUser = user;
                     updateConnectionStatus(true);
-                    if (localStorage.getItem('chess_username') && !document.getElementById('screen-login').classList.contains('hidden')) {
-                        handleLogin();
-                    }
+                    if (localStorage.getItem('chess_username') && !document.getElementById('screen-login').classList.contains('hidden')) handleLogin();
                 } else {
                     updateConnectionStatus(false);
                     auth.signInAnonymously();
                 }
             });
 
-            // Global Mouse Up for Drag Drop safety
             document.addEventListener('mouseup', endDrag);
             document.addEventListener('touchend', endDrag);
+            document.addEventListener('contextmenu', event => event.preventDefault());
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('sound-toggle');
+            if(soundEnabled) {
+                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                btn.classList.remove('text-red-500');
+            } else {
+                btn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                btn.classList.add('text-red-500');
+            }
         }
 
         function updateConnectionStatus(connected) {
@@ -370,39 +358,123 @@
             loadHistory();
         }
 
-        function logout() {
-            localStorage.removeItem('chess_username');
-            location.reload();
+        function logout() { localStorage.removeItem('chess_username'); location.reload(); }
+
+        // --- HISTORY & REPLAY ---
+        function loadHistory() {
+            const histList = document.getElementById('history-list');
+            if(!histList) return;
+            const history = JSON.parse(localStorage.getItem('chess_history') || '[]');
+            histList.innerHTML = '';
+            if (history.length === 0) {
+                histList.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Belum ada riwayat.</div>';
+                return;
+            }
+            history.reverse().forEach((game, idx) => {
+                const el = document.createElement('div');
+                const resClass = game.result === 'win' ? 'text-green-400' : (game.result === 'loss' ? 'text-red-400' : 'text-yellow-400');
+                el.className = "bg-slate-700/30 p-2 rounded text-xs mb-2 border border-slate-700 flex justify-between items-center cursor-pointer hover:bg-slate-700 transition";
+                el.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="text-slate-300 font-semibold">vs ${game.opponent}</span>
+                        <span class="text-[10px] text-slate-500">${new Date(game.date).toLocaleDateString()}</span>
+                    </div>
+                    <span class="${resClass} font-bold uppercase border border-slate-600 px-1 rounded">${game.result}</span>
+                `;
+                el.onclick = () => loadReplayGame(game);
+                histList.appendChild(el);
+            });
+        }
+
+        function loadReplayGame(game) {
+            // Setup replay mode
+            currentGameId = null; // No live id
+            isReplayMode = true;
+            isAnalysisMode = true;
+            boardOrientation = 'white';
+            
+            // PGN Logic: jika history tersimpan dengan PGN, load. Jika tidak, hanya FEN akhir (limitasi versi lama)
+            // Untuk versi ini kita asumsikan simpan PGN nanti.
+            // Jika data lama belum ada PGN, tampilkan pesan.
+            if (!game.pgn) {
+                alert("Maaf, riwayat lama tidak memiliki data langkah lengkap (PGN).");
+                return;
+            }
+
+            chess.load_pgn(game.pgn);
+            viewHistoryIndex = -1; // Start at end
+            
+            document.getElementById('opponent-name').innerText = game.opponent;
+            document.getElementById('player-name-display').innerText = localStorage.getItem('chess_username');
+            
+            showScreen('game');
+            // Hide play controls, show analysis
+            document.getElementById('play-controls').classList.add('hidden');
+            document.getElementById('analysis-controls').classList.remove('hidden');
+            
+            renderBoard();
+            updateMoveHistoryUI();
+        }
+
+        // --- ARROWS & BOARD DRAWING ---
+        function handleRightClickDown(e, square) { if(!square) return; isRightClicking = true; rightClickStart = square; rightClickCurrent = square; }
+        function handleRightClickMove(e, square) { if(isRightClicking && square && rightClickCurrent !== square) { rightClickCurrent = square; drawArrows(); } }
+        function handleRightClickUp(e, square) {
+            if(!isRightClicking) return; isRightClicking = false;
+            if (rightClickStart === square) {
+                const index = circleHighlights.indexOf(square);
+                if (index > -1) circleHighlights.splice(index, 1); else circleHighlights.push(square);
+            } else if (square) {
+                const existingIndex = arrows.findIndex(a => a.from === rightClickStart && a.to === square);
+                if (existingIndex > -1) arrows.splice(existingIndex, 1); else arrows.push({ from: rightClickStart, to: square });
+            }
+            rightClickStart = null; rightClickCurrent = null; renderBoard(); 
+        }
+        function clearArrowsAndHighlights() { arrows = []; circleHighlights = []; renderBoard(); }
+        function drawArrows() {
+            const svg = document.getElementById('arrow-layer'); if(!svg) return; svg.innerHTML = ''; 
+            const getCoords = (sq) => {
+                const col = sq.charCodeAt(0) - 97; const row = 8 - parseInt(sq[1]); 
+                let x = boardOrientation === 'white' ? col : 7 - col; let y = boardOrientation === 'white' ? row : 7 - row;
+                return { x: (x * 12.5) + 6.25, y: (y * 12.5) + 6.25 };
+            };
+            arrows.forEach(a => renderArrowSvg(svg, getCoords(a.from), getCoords(a.to), '#ffaa00'));
+            if (isRightClicking && rightClickStart && rightClickCurrent && rightClickStart !== rightClickCurrent) {
+                renderArrowSvg(svg, getCoords(rightClickStart), getCoords(rightClickCurrent), '#ffaa00', 0.6);
+            }
+        }
+        function renderArrowSvg(svg, start, end, color, opacity = 0.8) {
+            const angle = Math.atan2(end.y - start.y, end.x - start.x);
+            const lineEnd = { x: end.x - 3 * Math.cos(angle), y: end.y - 3 * Math.sin(angle) };
+            const id = `arrow-${Math.random().toString(36).substr(2,9)}`;
+            
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+            marker.setAttribute("id", id); marker.setAttribute("markerWidth", "4"); marker.setAttribute("markerHeight", "4");
+            marker.setAttribute("refX", "2"); marker.setAttribute("refY", "2"); marker.setAttribute("orient", "auto");
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", "M0,0 L4,2 L0,4 Z"); path.setAttribute("fill", color); path.setAttribute("fill-opacity", opacity);
+            marker.appendChild(path); defs.appendChild(marker); svg.appendChild(defs);
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", start.x); line.setAttribute("y1", start.y); line.setAttribute("x2", lineEnd.x); line.setAttribute("y2", lineEnd.y);
+            line.setAttribute("stroke", color); line.setAttribute("stroke-width", "2.5"); line.setAttribute("stroke-opacity", opacity);
+            line.setAttribute("marker-end", `url(#${id})`); svg.appendChild(line);
         }
 
         // --- LOBBY ---
         function listenToLobby() {
             db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games')
-                .where('status', '==', 'waiting')
-                .limit(20)
-                .onSnapshot((snapshot) => {
-                    const listEl = document.getElementById('room-list');
-                    listEl.innerHTML = '';
-                    if (snapshot.empty) {
-                        listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Tidak ada room. Buat baru!</div>';
-                        return;
-                    }
-                    
-                    let games = [];
-                    snapshot.forEach(doc => games.push({id: doc.id, ...doc.data()}));
-                    games.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
+                .where('status', '==', 'waiting').limit(20).onSnapshot((snap) => {
+                    const listEl = document.getElementById('room-list'); listEl.innerHTML = '';
+                    if (snap.empty) { listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Kosong.</div>'; return; }
+                    let games = []; snap.forEach(doc => games.push({id: doc.id, ...doc.data()}));
+                    games.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
                     games.forEach(g => {
                         if (g.white.id === currentUser?.uid) return;
                         const div = document.createElement('div');
-                        div.className = "bg-slate-700 p-2 rounded flex justify-between items-center border border-slate-600";
-                        div.innerHTML = `
-                            <div class="flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                                <span class="font-bold text-white text-sm">${g.white.name}</span>
-                            </div>
-                            <button onclick="joinGame('${g.id}')" class="bg-blue-600 px-3 py-1 rounded text-xs font-bold text-white">MAIN</button>
-                        `;
+                        div.className = "bg-slate-700 p-2 rounded flex justify-between items-center border border-slate-600 mb-2";
+                        div.innerHTML = `<span class="text-sm font-bold text-white">${g.white.name}</span><button onclick="joinGame('${g.id}')" class="bg-blue-600 px-3 py-1 rounded text-xs text-white">MAIN</button>`;
                         listEl.appendChild(div);
                     });
                 });
@@ -412,142 +484,112 @@
             if(!currentUser) return alert("Belum konek!");
             btn.disabled = true;
             try {
-                const name = localStorage.getItem('chess_username');
                 const gameId = currentUser.uid + '_' + Date.now();
-                
-                if (type === 'ai') {
-                    isAI = true;
-                    startGameLocal(gameId, 'white', 'Stockfish AI');
-                } else {
+                if (type === 'ai') { isAI = true; startGameLocal(gameId, 'white', 'Stockfish AI'); } 
+                else {
                     isAI = false;
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(gameId).set({
-                        white: { name: name, id: currentUser.uid },
-                        black: null,
-                        fen: 'start',
-                        pgn: '',
-                        status: 'waiting',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        requests: {} // For takeback/draw
+                        white: { name: currentUser.displayName || localStorage.getItem('chess_username'), id: currentUser.uid },
+                        black: null, fen: 'start', pgn: '', status: 'waiting', createdAt: firebase.firestore.FieldValue.serverTimestamp(), requests: {}
                     });
                     startGameFirestore(gameId, 'white');
                 }
-            } catch(e) { 
-                alert("Error: " + e.message); 
-            } finally { btn.disabled = false; }
+            } catch(e) { alert(e.message); } finally { btn.disabled = false; }
         }
 
         async function joinGame(id) {
-            const name = localStorage.getItem('chess_username');
             isAI = false;
             try {
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id).update({
-                    black: { name: name, id: currentUser.uid },
-                    status: 'playing'
+                    black: { name: localStorage.getItem('chess_username'), id: currentUser.uid }, status: 'playing'
                 });
                 startGameFirestore(id, 'black');
-            } catch(e) { alert("Room penuh/hilang"); }
+            } catch(e) { alert("Penuh/Hilang"); }
         }
 
         // --- GAME LOGIC ---
-        let gameUnsubscribe = null;
-
-        function startGameLocal(id, orientation, oppName) {
-            setupGameCommon(id, orientation, oppName);
-            if(orientation==='black') setTimeout(makeAIMove, 500);
-        }
-
+        function startGameLocal(id, orientation, oppName) { setupGameCommon(id, orientation, oppName); playSound('start'); if(orientation==='black') setTimeout(makeAIMove, 500); }
         function startGameFirestore(id, orientation) {
             setupGameCommon(id, orientation, "Menunggu...");
-            
             if(gameUnsubscribe) gameUnsubscribe();
-            gameUnsubscribe = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id)
-                .onSnapshot(doc => {
-                    if(!doc.exists) return;
-                    gameData = doc.data();
-                    
-                    // Update Info
-                    const opp = orientation === 'white' ? gameData.black : gameData.white;
-                    document.getElementById('opponent-name').innerText = opp ? opp.name : "Menunggu...";
-                    
-                    // Check Requests (Takeback/Draw)
-                    checkRequests(gameData.requests, orientation);
+            gameUnsubscribe = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id).onSnapshot(doc => {
+                if(!doc.exists) return;
+                gameData = doc.data();
+                const opp = orientation === 'white' ? gameData.black : gameData.white;
+                document.getElementById('opponent-name').innerText = opp ? opp.name : "Menunggu...";
+                if (gameData.status === 'playing' && document.getElementById('opponent-name').innerText === "Menunggu...") playSound('start');
+                
+                checkRequests(gameData.requests, orientation);
 
-                    // Sync Board (Only if live)
-                    if (viewHistoryIndex === -1 && gameData.fen && gameData.fen !== 'start' && chess.fen() !== gameData.fen) {
-                        chess.load(gameData.fen);
-                        
-                        // Check Premove Logic
-                        if (premove) {
-                            const move = chess.move({ from: premove.from, to: premove.to, promotion: 'q' });
-                            if (move) {
-                                premove = null;
-                                pushMoveToFirestore(); // Execute premove
-                            } else {
-                                premove = null; // Illegal now
-                            }
-                        }
-                        
-                        renderBoard();
-                        updateMoveHistoryUI();
-                        checkGameOver(false);
-                        playSound('move');
-                    }
+                if (viewHistoryIndex === -1 && gameData.fen && gameData.fen !== 'start' && chess.fen() !== gameData.fen) {
+                    if(gameData.pgn) chess.load_pgn(gameData.pgn); else chess.load(gameData.fen);
                     
-                    if (gameData.status === 'finished' && !isAnalysisMode) {
-                        const myName = localStorage.getItem('chess_username');
-                        let result = 'draw';
-                        if(gameData.winner && gameData.winner !== 'draw') {
-                            result = gameData.winner === myName ? 'win' : 'loss';
-                        }
-                        handleGameOver(result, true);
+                    if (premove) {
+                        const move = chess.move({ from: premove.from, to: premove.to, promotion: 'q' });
+                        if (move) { premove = null; pushMoveToFirestore(); } else { premove = null; } 
                     }
-                });
+
+                    const lastMove = chess.history({verbose:true}).pop();
+                    if(chess.in_check()) playSound('check');
+                    else if (lastMove && lastMove.flags.includes('c')) playSound('capture');
+                    else playSound('move');
+                    
+                    renderBoard(); updateMoveHistoryUI(); checkGameOver(false);
+                }
+                
+                if (gameData.status === 'finished' && !isAnalysisMode) {
+                    let result = gameData.winner === localStorage.getItem('chess_username') ? 'win' : (gameData.winner === 'draw' ? 'draw' : 'loss');
+                    handleGameOver(result, true);
+                }
+            });
         }
 
         function setupGameCommon(id, orientation, oppName) {
-            currentGameId = id;
-            boardOrientation = orientation;
-            chess.reset();
-            isAnalysisMode = false;
-            premove = null;
-            viewHistoryIndex = -1;
-            selectedSquare = null;
-            
+            currentGameId = id; boardOrientation = orientation; chess.reset(); isAnalysisMode = false; isReplayMode = false; premove = null; viewHistoryIndex = -1; selectedSquare = null;
+            clearArrowsAndHighlights();
             document.getElementById('opponent-name').innerText = oppName;
             document.getElementById('player-name-display').innerText = localStorage.getItem('chess_username');
-            
             showScreen('game');
             document.getElementById('play-controls').classList.remove('hidden');
             document.getElementById('analysis-controls').classList.add('hidden');
-            
-            renderBoard();
-            updateMoveHistoryUI();
+            renderBoard(); updateMoveHistoryUI();
         }
 
-        // --- BOARD RENDERING & INTERACTION ---
+        // --- RENDER ---
         function renderBoard() {
             const boardEl = document.getElementById('chess-board');
-            boardEl.innerHTML = '';
-            
-            // Determine board state to show (Live vs History)
+            if(!boardEl) return;
+            boardEl.innerHTML = '<svg id="arrow-layer" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
+
             let boardState = chess.board();
             let currentTurn = chess.turn();
             
-            // If viewing history
             if (viewHistoryIndex !== -1) {
-                // Use a temporary chess instance to recreate state
-                const tempChess = new Chess();
-                const moves = chess.history();
-                for(let i=0; i<=viewHistoryIndex; i++) tempChess.move(moves[i]);
-                boardState = tempChess.board();
-                currentTurn = tempChess.turn();
+                try {
+                    const tempChess = new Chess();
+                    // Load entire history to get correct state
+                    // Jika mode replay dan ada PGN, load dari awal
+                    if(isReplayMode || chess.pgn().length > 0) {
+                        const tempForMoves = new Chess();
+                        if(isReplayMode && !currentGameId) { 
+                            // Replay from local storage data already loaded in chess
+                        } else {
+                            // Live game history
+                        }
+                        // Simplest: just use the main chess object history
+                        const history = chess.history();
+                        for(let i=0; i<=viewHistoryIndex; i++) tempChess.move(history[i]);
+                        boardState = tempChess.board();
+                        currentTurn = tempChess.turn();
+                    }
+                } catch(e) { viewHistoryIndex = -1; }
             }
 
             const isWhite = boardOrientation === 'white';
             const rows = isWhite ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
             const cols = isWhite ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
-            
             const lastMove = chess.history({verbose:true}).pop();
+            const inCheck = (viewHistoryIndex === -1) ? chess.in_check() : false;
 
             rows.forEach(r => {
                 cols.forEach(c => {
@@ -558,170 +600,102 @@
                     div.className = `square ${(r+c)%2===0 ? 'white' : 'black'}`;
                     div.dataset.square = square;
 
-                    // Classes for colors/highlights
                     if (viewHistoryIndex !== -1) div.classList.add('viewing-history');
                     if (selectedSquare === square) div.classList.add('selected');
                     if (viewHistoryIndex === -1 && lastMove && (lastMove.from === square || lastMove.to === square)) div.classList.add('last-move');
                     if (premove && (premove.from === square || premove.to === square)) div.classList.add('premove');
+                    if (inCheck && piece && piece.type === 'k' && piece.color === currentTurn) div.classList.add('in-check');
+                    if (circleHighlights.includes(square)) div.classList.add('circle-highlight');
 
-                    // Highlight Valid Moves
                     if (selectedSquare && viewHistoryIndex === -1) {
                         const moves = chess.moves({square: selectedSquare, verbose: true});
                         if (moves.find(m => m.to === square)) div.classList.add('possible-move');
                     }
 
-                    // Render Piece
                     if (piece) {
                         const img = document.createElement('div');
                         img.className = 'piece';
                         img.style.backgroundImage = `url('${getPieceUrl(piece.color, piece.type)}')`;
-                        
-                        // Drag Events (Only if my turn or premove allowed, and playing live)
-                        if (viewHistoryIndex === -1) {
-                            const isMyPiece = piece.color === boardOrientation.charAt(0);
-                            if (isMyPiece) {
-                                img.addEventListener('mousedown', (e) => startDrag(e, square, img));
-                                img.addEventListener('touchstart', (e) => startDrag(e, square, img), {passive:false});
-                            }
+                        if (viewHistoryIndex === -1 && piece.color === boardOrientation.charAt(0)) {
+                            img.addEventListener('mousedown', (e) => { if(e.button===0) startDrag(e, square, img); });
+                            img.addEventListener('touchstart', (e) => startDrag(e, square, img), {passive:false});
                         }
                         div.appendChild(img);
                     }
-                    
-                    // Click Event (Fallback for tap)
                     div.onclick = () => onSquareClick(square);
-                    
+                    div.addEventListener('mousedown', (e) => { if(e.button===2) handleRightClickDown(e, square); });
+                    div.addEventListener('mouseup', (e) => { if(e.button===2) handleRightClickUp(e, square); });
+                    div.addEventListener('mouseenter', (e) => handleRightClickMove(e, square)); 
                     boardEl.appendChild(div);
                 });
             });
-            
-            updateStatusText();
+            drawArrows(); updateStatusText();
         }
 
-        // --- DRAG & DROP LOGIC ---
-        function startDrag(e, square, el) {
-            if (isAnalysisMode || viewHistoryIndex !== -1) return;
-            e.preventDefault(); // Stop selection
-            
-            isDragging = true;
-            dragStartSquare = square;
-            draggedPiece = el;
-            
-            // Select square first (shows highlights)
-            onSquareClick(square); 
-            
-            // Setup Ghost
-            const ghost = document.getElementById('drag-ghost');
-            ghost.style.backgroundImage = el.style.backgroundImage;
-            ghost.style.display = 'block';
-            
-            el.classList.add('dragging');
-            moveGhost(e);
-            
-            document.addEventListener('mousemove', moveGhost);
-            document.addEventListener('touchmove', moveGhost, {passive:false});
-        }
-
-        function moveGhost(e) {
-            if(!isDragging) return;
-            const ghost = document.getElementById('drag-ghost');
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            ghost.style.left = clientX + 'px';
-            ghost.style.top = clientY + 'px';
-        }
-
-        function endDrag(e) {
-            if(!isDragging) return;
-            isDragging = false;
-            
-            const ghost = document.getElementById('drag-ghost');
-            ghost.style.display = 'none';
-            if(draggedPiece) draggedPiece.classList.remove('dragging');
-            
-            document.removeEventListener('mousemove', moveGhost);
-            document.removeEventListener('touchmove', moveGhost);
-
-            // Calculate dropped square
-            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            
-            // Find element below cursor
-            const elements = document.elementsFromPoint(clientX, clientY);
-            const squareEl = elements.find(el => el.classList.contains('square'));
-            
-            if (squareEl) {
-                const targetSquare = squareEl.dataset.square;
-                if (targetSquare && targetSquare !== dragStartSquare) {
-                    handleMoveAttempt(dragStartSquare, targetSquare);
-                }
-            }
-        }
-
-        // --- MOVE LOGIC ---
+        // --- INTERACTION ---
         function onSquareClick(square) {
-            if (isAnalysisMode || viewHistoryIndex !== -1 || isDragging) return;
-
-            // If clicking own piece, select it
+            if (arrows.length > 0 || circleHighlights.length > 0) clearArrowsAndHighlights();
+            if (premove) { premove = null; renderBoard(); }
+            if (isAnalysisMode && !isReplayMode) return; // Analysis mode tapi bukan replay (post-game)
+            if (viewHistoryIndex !== -1 || isDragging) return;
+            
             const piece = chess.get(square);
             const myColor = boardOrientation.charAt(0);
-            
+
             if (selectedSquare === null) {
-                if (piece && piece.color === myColor) {
-                    selectedSquare = square;
-                    renderBoard();
-                }
+                if (piece && piece.color === myColor) { selectedSquare = square; renderBoard(); }
             } else {
-                // If clicking same square, deselect
-                if (selectedSquare === square) {
-                    selectedSquare = null;
-                    renderBoard();
-                    return;
-                }
-                
-                // If clicking another own piece, switch selection
-                if (piece && piece.color === myColor) {
-                    selectedSquare = square;
-                    renderBoard();
-                    return;
-                }
-                
-                // Attempt move
+                if (selectedSquare === square) { selectedSquare = null; renderBoard(); return; }
+                if (piece && piece.color === myColor) { selectedSquare = square; renderBoard(); return; }
                 handleMoveAttempt(selectedSquare, square);
             }
         }
 
+        function startDrag(e, square, el) {
+            if (isAnalysisMode || viewHistoryIndex !== -1) return;
+            e.preventDefault(); isDragging = true; dragStartSquare = square; draggedPiece = el;
+            onSquareClick(square); 
+            const ghost = document.getElementById('drag-ghost');
+            ghost.style.backgroundImage = el.style.backgroundImage; ghost.style.display = 'block';
+            el.classList.add('dragging'); moveGhost(e);
+            document.addEventListener('mousemove', moveGhost); document.addEventListener('touchmove', moveGhost, {passive:false});
+        }
+        function moveGhost(e) {
+            if(!isDragging) return;
+            const ghost = document.getElementById('drag-ghost');
+            const cX = e.touches ? e.touches[0].clientX : e.clientX;
+            const cY = e.touches ? e.touches[0].clientY : e.clientY;
+            ghost.style.left = cX + 'px'; ghost.style.top = cY + 'px';
+        }
+        function endDrag(e) {
+            if(!isDragging) return;
+            isDragging = false;
+            const ghost = document.getElementById('drag-ghost');
+            ghost.style.display = 'none'; if(draggedPiece) draggedPiece.classList.remove('dragging');
+            document.removeEventListener('mousemove', moveGhost); document.removeEventListener('touchmove', moveGhost);
+            const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const el = document.elementsFromPoint(cX, cY).find(el => el.classList.contains('square'));
+            if (el) {
+                const target = el.dataset.square;
+                if (target !== dragStartSquare) handleMoveAttempt(dragStartSquare, target);
+            }
+        }
+
         function handleMoveAttempt(from, to) {
-            // 1. Is it my turn?
             const myTurn = chess.turn() === boardOrientation.charAt(0);
-            
             if (myTurn) {
-                // Normal Move
-                const move = chess.move({ from: from, to: to, promotion: 'q' });
-                selectedSquare = null;
-                premove = null;
-                
+                const move = chess.move({ from, to, promotion: 'q' });
+                selectedSquare = null; premove = null;
                 if (move) {
-                    renderBoard();
-                    updateMoveHistoryUI();
-                    playSound('move');
-                    if (isAI) {
-                        checkGameOver(true);
-                        setTimeout(makeAIMove, 500);
-                    } else {
-                        pushMoveToFirestore();
-                    }
-                } else {
-                    renderBoard(); // Invalid move, redraw to clear selection
-                }
+                    renderBoard(); updateMoveHistoryUI();
+                    if(chess.in_check()) playSound('check'); else if(move.flags.includes('c')) playSound('capture'); else playSound('move');
+                    if (isAI) { checkGameOver(true); setTimeout(makeAIMove, 500); } else { pushMoveToFirestore(); }
+                } else { renderBoard(); }
             } else {
-                // Premove Logic
-                // Simple validation: is it a vaguely plausible move? (own piece to somewhere)
                 const piece = chess.get(from);
                 if (piece && piece.color === boardOrientation.charAt(0)) {
-                    premove = { from: from, to: to };
-                    selectedSquare = null;
-                    renderBoard(); // Will highlight red
+                    premove = { from, to }; selectedSquare = null; renderBoard();
                 }
             }
         }
@@ -729,275 +703,135 @@
         async function pushMoveToFirestore() {
             if (!currentGameId) return;
             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                fen: chess.fen(),
-                pgn: chess.pgn(),
-                lastMove: { t: Date.now() }
+                fen: chess.fen(), pgn: chess.pgn(), lastMove: { t: Date.now() }
             });
             checkGameOver(true);
         }
 
-        // --- AI LOGIC ---
         function makeAIMove() {
             if (chess.game_over()) return;
-            if (stockfishWorker) {
-                stockfishWorker.postMessage('position fen ' + chess.fen());
-                stockfishWorker.postMessage('go depth 6'); 
-                window.awaitingAI = true;
-            } else {
-                // Fallback
-                const moves = chess.moves();
-                const randomMove = moves[Math.floor(Math.random() * moves.length)];
-                chess.move(randomMove);
-                renderBoard();
-                updateMoveHistoryUI();
-                checkGameOver(true);
-            }
+            if (stockfishWorker) { stockfishWorker.postMessage('position fen ' + chess.fen()); stockfishWorker.postMessage('go depth 6'); window.awaitingAI = true; } 
+            else { const moves = chess.moves(); chess.move(moves[Math.floor(Math.random()*moves.length)]); renderBoard(); updateMoveHistoryUI(); checkGameOver(true); }
         }
-
         function handleStockfishMessage(e) {
             if(window.awaitingAI && e.data.startsWith('bestmove')) {
-                window.awaitingAI = false;
-                const move = e.data.split(' ')[1];
-                chess.move(move, {sloppy:true});
-                renderBoard();
-                updateMoveHistoryUI();
-                checkGameOver(true);
-                playSound('move');
+                window.awaitingAI = false; chess.move(e.data.split(' ')[1], {sloppy:true}); renderBoard(); updateMoveHistoryUI(); 
+                if(chess.in_check()) playSound('check'); else playSound('move'); checkGameOver(true);
             }
-            // Analysis
             if(isAnalysisMode && e.data.startsWith('info') && e.data.includes('score cp')) {
-                const match = e.data.match(/score cp (-?\d+)/);
-                if(match) {
-                    let cp = parseInt(match[1]);
-                    if(chess.turn()==='b') cp = -cp;
-                    const pct = Math.max(5, Math.min(95, 50 + (cp/10)));
-                    document.getElementById('eval-fill').style.width = pct + '%';
-                    document.getElementById('eval-score').innerText = (cp/100).toFixed(1);
-                }
+                const m = e.data.match(/score cp (-?\d+)/); 
+                if(m) { let cp = parseInt(m[1]); if(chess.turn()==='b') cp = -cp; 
+                document.getElementById('eval-fill').style.width = Math.max(5,Math.min(95,50+(cp/10))) + '%'; document.getElementById('eval-score').innerText=(cp/100).toFixed(1); }
             }
         }
 
-        // --- MULTIPLAYER ACTIONS (Takeback, Draw, Resign) ---
-        async function reqTakeback() {
-            if(isAI) { chess.undo(); chess.undo(); renderBoard(); updateMoveHistoryUI(); return; }
-            if(!confirm("Minta ijin mundur langkah ke lawan?")) return;
-            sendRequest('takeback');
+        function checkGameOver(local) { 
+            if(chess.game_over()) { 
+                let res='draw'; let winner='draw'; 
+                if(chess.in_checkmate()) { 
+                    res=boardOrientation===(chess.turn()==='w'?'black':'white')?'win':'loss'; 
+                    winner=res==='win'?localStorage.getItem('chess_username'):document.getElementById('opponent-name').innerText; 
+                } 
+                if(local&&!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner}); 
+                handleGameOver(res); 
+            } 
         }
 
-        async function reqDraw() {
-            if(!confirm("Ajukan penawaran remis (draw)?")) return;
-            sendRequest('draw');
-        }
-
-        function confirmResign() {
-            showModalConfirm("Menyerah?", "Anda akan kalah dalam permainan ini.", () => {
-                handleGameOver('loss');
-                if(!isAI) {
-                    const opp = document.getElementById('opponent-name').innerText;
-                    db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                        status: 'finished', winner: opp
-                    });
-                }
-            });
-        }
-
-        async function sendRequest(type) {
-            const reqData = { type: type, sender: currentUser.uid, status: 'pending' };
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                requests: reqData
-            });
-            alert("Permintaan dikirim.");
-        }
-
-        function checkRequests(req, myColor) {
-            if(!req || req.status !== 'pending') {
-                document.getElementById('modal-request').classList.add('hidden');
-                return;
-            }
-            if(req.sender === currentUser.uid) return; // Wait my own req
-
-            // Show Modal
-            const modal = document.getElementById('modal-request');
-            const title = document.getElementById('req-title');
-            const msg = document.getElementById('req-message');
+        function handleGameOver(res) { 
+            document.getElementById('game-status').innerHTML = res; 
+            playSound('end'); 
             
-            modal.classList.remove('hidden');
-            if(req.type === 'takeback') {
-                title.innerText = "Minta Mundur";
-                msg.innerText = "Lawan ingin membatalkan langkah terakhir.";
-            } else if (req.type === 'draw') {
-                title.innerText = "Tawaran Remis";
-                msg.innerText = "Lawan menawarkan hasil seri.";
-            }
-        }
-
-        async function respondRequest(accepted) {
-            document.getElementById('modal-request').classList.add('hidden');
-            if(!gameData.requests) return;
-            
-            const reqType = gameData.requests.type;
-            
-            if (accepted) {
-                if (reqType === 'takeback') {
-                    // Logic Undo in Firestore: Load PGN, undo last move, save
-                    // Complex, simplified: Just notify accepted, manual undo logic needed server side ideally
-                    // Client side dirty fix:
-                    const temp = new Chess();
-                    temp.load_pgn(chess.pgn());
-                    temp.undo(); // Undo opponent
-                    // If playing online, usually need to undo 2 moves (my last and his last) to get back to my turn?
-                    // Simplified: just Undo once (back to previous turn)
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                        fen: temp.fen(), pgn: temp.pgn(), requests: { status: 'accepted' }
-                    });
-                } else if (reqType === 'draw') {
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                        status: 'finished', winner: 'draw', requests: { status: 'accepted' }
-                    });
-                }
-            } else {
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                    requests: { status: 'rejected' }
-                });
-            }
-        }
-
-        // --- HISTORY & UTILS ---
-        function updateMoveHistoryUI() {
-            const hist = chess.history();
-            const tbody = document.getElementById('move-history');
-            tbody.innerHTML = '';
-            
-            // Correct Move Counter Logic
-            for (let i = 0; i < hist.length; i += 2) {
-                const moveNum = (i / 2) + 1;
-                const whiteMove = hist[i];
-                const blackMove = hist[i+1] || '';
-                
-                const row = document.createElement('tr');
-                row.className = "border-b border-slate-800 hover:bg-slate-800 transition";
-                
-                row.innerHTML = `
-                    <td class="px-2 py-1 text-slate-500 w-8 border-r border-slate-700">${moveNum}.</td>
-                    <td class="px-2 py-1 cursor-pointer hover:text-white ${i === viewHistoryIndex ? 'active-history rounded' : ''}" onclick="viewHistory(${i})">${whiteMove}</td>
-                    <td class="px-2 py-1 cursor-pointer hover:text-white ${i+1 === viewHistoryIndex ? 'active-history rounded' : ''}" onclick="viewHistory(${i+1})">${blackMove}</td>
-                `;
-                tbody.appendChild(row);
-            }
-            
-            // Scroll to bottom if live
-            if(viewHistoryIndex === -1) {
-                const container = document.getElementById('pgn-container');
-                container.scrollTop = container.scrollHeight;
-            }
-        }
-
-        function viewHistory(index) {
-            const historyLength = chess.history().length;
-            if (index >= historyLength - 1) {
-                viewHistoryIndex = -1; // Back to live
-            } else {
-                viewHistoryIndex = index;
-            }
-            renderBoard();
-            updateMoveHistoryUI(); // Update active highlights
-        }
-
-        function updateStatusText() {
-            const statusEl = document.getElementById('game-status');
-            const turnEl = document.getElementById('turn-indicator');
-            
-            if(viewHistoryIndex !== -1) {
-                turnEl.innerText = "MODE REPLAY";
-                turnEl.className = "text-xs font-bold text-yellow-500 bg-yellow-900/30 px-2 rounded";
-                return;
-            }
-
-            const myTurn = chess.turn() === boardOrientation.charAt(0);
-            
-            if (myTurn) {
-                turnEl.innerText = "GILIRAN ANDA";
-                turnEl.className = "text-xs font-bold text-green-400 animate-pulse bg-green-900/30 px-2 rounded";
-            } else {
-                turnEl.innerText = "GILIRAN LAWAN";
-                turnEl.className = "text-xs font-bold text-slate-500 bg-slate-800 px-2 rounded";
-            }
-
-            if(chess.in_check()) statusEl.innerText = "SKAK!";
-            else statusEl.innerText = "";
-        }
-
-        function checkGameOver(localTrigger) {
-            if (chess.game_over()) {
-                let res = 'draw';
-                let winnerName = 'draw';
-                const myName = localStorage.getItem('chess_username');
-                const oppName = document.getElementById('opponent-name').innerText;
-
-                if (chess.in_checkmate()) {
-                    const winnerColor = chess.turn() === 'w' ? 'black' : 'white';
-                    if (boardOrientation === winnerColor) { res = 'win'; winnerName = myName; }
-                    else { res = 'loss'; winnerName = oppName; }
-                }
-                
-                if (localTrigger && !isAI) {
-                    db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                        status: 'finished', winner: winnerName
-                    });
-                }
-                handleGameOver(res);
-            }
-        }
-
-        function handleGameOver(res, remote) {
-            const titles = { 'win': 'MENANG!', 'loss': 'KALAH', 'draw': 'REMIS' };
-            const colors = { 'win': 'text-green-500', 'loss': 'text-red-500', 'draw': 'text-yellow-500' };
-            
-            document.getElementById('game-status').innerHTML = `<span class="${colors[res]} font-bold text-base">${titles[res]}</span>`;
-            
-            // Simpan Histori
+            // Simpan PGN ke Local Storage agar bisa di replay
             const hist = JSON.parse(localStorage.getItem('chess_history') || '[]');
             const oppName = document.getElementById('opponent-name').innerText;
-            // Prevent duplicate save
             const last = hist[hist.length-1];
             if(!last || (Date.now() - new Date(last.date).getTime() > 5000)) {
-                hist.push({ date: new Date().toISOString(), opponent: oppName, result: res });
+                hist.push({ date: new Date().toISOString(), opponent: oppName, result: res, pgn: chess.pgn() });
                 localStorage.setItem('chess_history', JSON.stringify(hist));
             }
 
-            // Switch UI
-            document.getElementById('play-controls').classList.add('hidden');
-            document.getElementById('analysis-controls').classList.remove('hidden');
-            
-            isAnalysisMode = true;
-            if(stockfishWorker) stockfishWorker.postMessage('position fen ' + chess.fen());
+            document.getElementById('play-controls').classList.add('hidden'); 
+            document.getElementById('analysis-controls').classList.remove('hidden'); 
+            isAnalysisMode=true; 
+            if(stockfishWorker) stockfishWorker.postMessage('position fen '+chess.fen()); 
+        }
+        
+        // --- TAKEBACK LOGIC BARU ---
+        async function reqTakeback() { 
+            if(isAI) { 
+                chess.undo(); chess.undo(); 
+                renderBoard(); updateMoveHistoryUI(); playSound('notify'); 
+                return; 
+            }
+            if(confirm("Minta mundur?")) sendRequest('takeback'); 
+        }
+        
+        async function respondRequest(acc) {
+            document.getElementById('modal-request').classList.add('hidden');
+            if(acc && gameData.requests.type==='takeback') {
+                // Logika Mundur Cerdas
+                const sender = gameData.requests.sender;
+                const requesterColor = (sender === gameData.white.id) ? 'w' : 'b';
+                
+                // Gunakan instance sementara untuk simulasi
+                const temp = new Chess();
+                temp.load_pgn(chess.pgn());
+                
+                // Mundur 1 kali (batalkan langkah terakhir)
+                temp.undo();
+                
+                // Jika setelah mundur 1x, giliran TIDAK SAMA dengan requester, mundur lagi
+                // Contoh: Putih minta mundur. Sekarang giliran Hitam. Mundur 1x -> Giliran Putih (OK).
+                // Contoh: Putih minta mundur. Sekarang giliran Putih (Hitam baru jalan). Mundur 1x -> Giliran Hitam (Belum OK). Mundur 1x lagi -> Giliran Putih (OK).
+                if (temp.turn() !== requesterColor) {
+                    temp.undo();
+                }
+                
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
+                    fen:temp.fen(), pgn:temp.pgn(), requests:{status:'accepted'}
+                });
+            } else if (acc && gameData.requests.type==='draw') {
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner:'draw', requests:{status:'accepted'}});
+            } else {
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{status:'rejected'}});
+            }
         }
 
+        // Helper & Utils
+        async function reqDraw() { if(confirm("Ajukan remis?")) sendRequest('draw'); }
+        function confirmResign() { showModalConfirm("Menyerah?", "Yakin?", () => { handleGameOver('loss'); if(!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner: document.getElementById('opponent-name').innerText}); }); }
+        async function sendRequest(t) { await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{type:t, sender:currentUser.uid, status:'pending'}}); alert("Terkirim"); }
+        function checkRequests(req) { if(req?.status==='pending' && req.sender!==currentUser.uid) { document.getElementById('modal-request').classList.remove('hidden'); document.getElementById('req-title').innerText = req.type; playSound('notify'); } else document.getElementById('modal-request').classList.add('hidden'); }
+        
+        function updateStatusText() {
+            const el = document.getElementById('turn-indicator');
+            if(viewHistoryIndex!==-1) { el.innerText="REPLAY"; el.className="text-xs font-bold text-yellow-500"; return; }
+            if(chess.turn()===boardOrientation.charAt(0)) { el.innerText="GILIRAN ANDA"; el.className="text-xs font-bold text-green-400 animate-pulse"; }
+            else { el.innerText="GILIRAN LAWAN"; el.className="text-xs font-bold text-slate-500"; }
+            document.getElementById('game-status').innerText = chess.in_check() ? "SKAK!" : "";
+        }
+        function playSound(t) { if(soundEnabled && audioFiles[t]) { audioFiles[t].currentTime=0; audioFiles[t].play().catch(()=>{}); } }
+        function showModalConfirm(t,m,y) { document.getElementById('modal-title').innerText=t; document.getElementById('modal-message').innerText=m; document.getElementById('modal-yes-btn').onclick=()=>{y();closeModal();}; document.getElementById('modal-confirm').classList.remove('hidden'); }
+        function closeModal() { document.querySelectorAll('.modal-overlay').forEach(e=>e.classList.add('hidden')); }
+        function showScreen(id) { ['screen-login','screen-lobby','screen-game'].forEach(s=>document.getElementById(s).classList.add('hidden')); document.getElementById('screen-'+id).classList.remove('hidden'); }
+        function flipBoard() { boardOrientation=boardOrientation==='white'?'black':'white'; renderBoard(); }
+        
+        function updateMoveHistoryUI() {
+            const tbody = document.getElementById('move-history'); tbody.innerHTML = '';
+            const hist = chess.history();
+            for(let i=0; i<hist.length; i+=2) {
+                tbody.innerHTML += `<tr class="border-b border-slate-800 hover:bg-slate-800"><td class="px-2 py-1 text-slate-500 w-8 border-r border-slate-700">${(i/2)+1}.</td><td class="px-2 py-1 cursor-pointer hover:text-white ${i===viewHistoryIndex?'active-history rounded':''}" onclick="viewHistory(${i})">${hist[i]}</td><td class="px-2 py-1 cursor-pointer hover:text-white ${i+1===viewHistoryIndex?'active-history rounded':''}" onclick="viewHistory(${i+1})">${hist[i+1]||''}</td></tr>`;
+            }
+            if(viewHistoryIndex===-1 && document.getElementById('pgn-container')) document.getElementById('pgn-container').scrollTop = 99999;
+        }
+        
         function exitGame() {
             if (gameUnsubscribe) gameUnsubscribe();
             chess.reset();
+            isReplayMode = false;
             showScreen('lobby');
             listenToLobby();
-        }
-
-        function playSound(type) {
-            // Placeholder for sound (Browser often blocks auto audio)
-        }
-
-        // Modal Utils
-        function showModalConfirm(title, msg, onYes) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-message').innerText = msg;
-            const yesBtn = document.getElementById('modal-yes-btn');
-            yesBtn.onclick = () => { onYes(); closeModal(); };
-            document.getElementById('modal-confirm').classList.remove('hidden');
-        }
-        function closeModal() {
-            document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden'));
-        }
-        function showScreen(id) {
-            ['screen-login', 'screen-lobby', 'screen-game'].forEach(sid => document.getElementById(sid).classList.add('hidden'));
-            document.getElementById('screen-'+id).classList.remove('hidden');
+            loadHistory(); // Reload history to update list
         }
 
         initApp();
