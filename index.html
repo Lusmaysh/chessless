@@ -22,16 +22,26 @@
         
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
         
+        /* --- BOARD STYLING --- */
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            /* Mobile: Batasi tinggi container papan agar sisa ruang untuk kontrol bawah aman */
+            height: calc(100vh - 320px); 
+            min-height: 300px;
+        }
+
         .chess-board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
             grid-template-rows: repeat(8, 1fr);
             
-            /* MOBILE DEFAULT SIZE (Agar muat dengan tombol) */
-            width: 90vw;
-            height: 90vw;
-            max-width: 48vh; 
-            max-height: 48vh;
+            /* Papan akan mengisi container tapi tetap persegi */
+            aspect-ratio: 1/1;
+            height: 100%;
+            max-height: 100%;
             
             margin: 0 auto;
             border: 3px solid #334155;
@@ -41,11 +51,10 @@
             background-color: #334155;
         }
 
-        /* DESKTOP/TABLET SIZE */
+        /* Desktop Adjustment */
         @media (min-width: 768px) {
-            .chess-board {
-                max-width: 75vh;
-                max-height: 75vh;
+            .board-container {
+                height: 80vh;
             }
         }
 
@@ -174,7 +183,10 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
                     <div class="bg-slate-800 rounded-lg border border-slate-700 flex flex-col overflow-hidden">
-                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700">Room Tersedia</div>
+                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700 flex justify-between">
+                            <span>Room Tersedia</span>
+                            <span class="text-xs text-slate-500 font-normal">Auto-refresh (Hanya 1 Jam Terakhir)</span>
+                        </div>
                         <div id="room-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
                     </div>
                     <div class="bg-slate-800 rounded-lg border border-slate-700 flex flex-col overflow-hidden">
@@ -189,7 +201,9 @@
         <div id="screen-game" class="absolute inset-0 bg-slate-900 hidden flex flex-col md:flex-row z-[40]">
             <!-- Board Container (Top/Left) -->
             <div class="flex-1 flex flex-col items-center justify-center p-2 relative bg-slate-900 overflow-hidden min-h-0">
-                <div class="w-[90vw] md:w-full md:max-w-[75vh] flex justify-between items-end mb-2 px-1">
+                
+                <!-- Info Lawan -->
+                <div class="w-full max-w-lg flex justify-between items-end mb-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-slate-700 border border-slate-500 flex items-center justify-center"><i class="fas fa-user text-slate-400"></i></div>
                         <div>
@@ -200,12 +214,15 @@
                     <div id="opponent-timer" class="bg-slate-800 px-2 py-1 rounded text-white font-mono text-sm border border-slate-700">--:--</div>
                 </div>
 
-                <!-- CHESS BOARD -->
-                <div id="chess-board" class="chess-board rounded shadow-2xl">
-                    <!-- SVG will be injected -->
+                <!-- BOARD WRAPPER -->
+                <div class="board-container">
+                    <div id="chess-board" class="chess-board rounded shadow-2xl">
+                        <!-- SVG will be injected -->
+                    </div>
                 </div>
 
-                <div class="w-[90vw] md:w-full md:max-w-[75vh] flex justify-between items-start mt-2 px-1">
+                <!-- Info Kita -->
+                <div class="w-full max-w-lg flex justify-between items-start mt-2 px-1">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded bg-indigo-900 border border-indigo-500 flex items-center justify-center"><i class="fas fa-user text-indigo-300"></i></div>
                         <div>
@@ -302,7 +319,7 @@
         let viewHistoryIndex = -1;
         let isReplayMode = false;
         
-        // Audio (Lichess Assets - Louder)
+        // Audio
         const audioFiles = {
             move: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-self.mp3',
             capture: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/capture.mp3',
@@ -373,7 +390,6 @@
 
         function logout() { localStorage.removeItem('chess_username'); location.reload(); }
 
-        // --- HISTORY & REPLAY ---
         function loadHistory() {
             const histList = document.getElementById('history-list');
             if(!histList) return;
@@ -423,14 +439,12 @@
             renderBoard();
             updateMoveHistoryUI();
             
-            // Trigger analysis
             if(stockfishWorker) {
                 stockfishWorker.postMessage('position fen ' + chess.fen());
                 stockfishWorker.postMessage('go depth 15');
             }
         }
 
-        // --- ARROWS & BOARD DRAWING ---
         function handleRightClickDown(e, square) { if(!square) return; isRightClicking = true; rightClickStart = square; rightClickCurrent = square; }
         function handleRightClickMove(e, square) { if(isRightClicking && square && rightClickCurrent !== square) { rightClickCurrent = square; drawArrows(); } }
         function handleRightClickUp(e, square) {
@@ -476,14 +490,32 @@
             line.setAttribute("marker-end", `url(#${id})`); svg.appendChild(line);
         }
 
-        // --- LOBBY ---
+        // --- LOBBY (FILTERED) ---
         function listenToLobby() {
             db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games')
                 .where('status', '==', 'waiting').limit(20).onSnapshot((snap) => {
                     const listEl = document.getElementById('room-list'); listEl.innerHTML = '';
                     if (snap.empty) { listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Kosong.</div>'; return; }
-                    let games = []; snap.forEach(doc => games.push({id: doc.id, ...doc.data()}));
+                    
+                    let games = []; 
+                    const now = Date.now();
+                    const oneHour = 3600000;
+
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        // FILTER: Hapus room yang lebih tua dari 1 jam
+                        if (d.createdAt && (now - d.createdAt.toMillis() < oneHour)) {
+                            games.push({id: doc.id, ...d});
+                        }
+                    });
+
                     games.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+                    
+                    if (games.length === 0) {
+                        listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Tidak ada room baru.</div>';
+                        return;
+                    }
+
                     games.forEach(g => {
                         if (g.white.id === currentUser?.uid) return;
                         const div = document.createElement('div');
@@ -667,8 +699,12 @@
         function startDrag(e, square, el) {
             // Allow drag in analysis mode too
             if (!isAnalysisMode && viewHistoryIndex !== -1) return;
-            e.preventDefault(); isDragging = true; dragStartSquare = square; draggedPiece = el;
-            onSquareClick(square); 
+            e.preventDefault(); 
+            isDragging = true; dragStartSquare = square; draggedPiece = el;
+            
+            // Don't call onSquareClick() here to avoid immediate selection toggle
+            // Instead, handle selection in endDrag if it's a click
+            
             const ghost = document.getElementById('drag-ghost');
             ghost.style.backgroundImage = el.style.backgroundImage; ghost.style.display = 'block';
             el.classList.add('dragging'); moveGhost(e);
@@ -687,12 +723,20 @@
             const ghost = document.getElementById('drag-ghost');
             ghost.style.display = 'none'; if(draggedPiece) draggedPiece.classList.remove('dragging');
             document.removeEventListener('mousemove', moveGhost); document.removeEventListener('touchmove', moveGhost);
+            
             const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
             const el = document.elementsFromPoint(cX, cY).find(el => el.classList.contains('square'));
+            
             if (el) {
                 const target = el.dataset.square;
-                if (target !== dragStartSquare) handleMoveAttempt(dragStartSquare, target);
+                if (target === dragStartSquare) {
+                    // Tap on same square = Click (Select/Deselect)
+                    onSquareClick(target);
+                } else {
+                    // Drag to different square = Move
+                    handleMoveAttempt(dragStartSquare, target);
+                }
             }
         }
 
