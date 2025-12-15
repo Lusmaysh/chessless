@@ -3,272 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Catur Master Pro</title>
+    <title>Kingdom Chess</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- Chess Logic & Icons -->
+    <!-- Chess Logic -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Medieval Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        :root { --wood-dark: #2b1d0e; --wood-light: #5d4037; --gold: #c5a059; --gold-dim: #8a6e3e; --parchment: #e6d2b5; }
+        body { font-family: 'Cinzel', serif; background-color: #1a120b; background-image: radial-gradient(circle at center, #2c1e14 0%, #0f0a06 100%); color: var(--parchment); overflow: hidden; touch-action: none; }
         
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
-        
-        /* --- BOARD STYLING --- */
-        .board-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            /* Mobile: Batasi tinggi container papan agar sisa ruang untuk kontrol bawah aman */
-            height: calc(100vh - 320px); 
-            min-height: 300px;
-        }
+        .medieval-panel { background: var(--wood-dark); border: 2px solid var(--gold-dim); box-shadow: 0 0 15px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5); position: relative; }
+        .medieval-btn { background: linear-gradient(to bottom, #5d4037, #3e2723); border: 2px solid var(--gold-dim); color: var(--parchment); text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 0 #271914; display: inline-flex; align-items: center; justify-content: center; }
+        .medieval-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #271914; }
+        .medieval-btn.primary { background: linear-gradient(to bottom, #b8860b, #8b6508); color: #1a0f00; border-color: #ffd700; }
+        .medieval-btn.danger { background: linear-gradient(to bottom, #8b0000, #500000); border-color: #ff4444; }
+        .medieval-btn.selected { border-color: #ffd700; background: #8b6508; box-shadow: inset 0 0 10px #000; color: #fff; }
+        .medieval-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+        .medieval-input { background: #1a120b; border: 2px solid var(--gold-dim); color: var(--gold); font-family: 'MedievalSharp', cursive; }
 
-        .chess-board {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
-            
-            /* Papan akan mengisi container tapi tetap persegi */
-            aspect-ratio: 1/1;
-            height: 100%;
-            max-height: 100%;
-            
-            margin: 0 auto;
-            border: 3px solid #334155;
-            user-select: none;
-            touch-action: none; 
-            position: relative;
-            background-color: #334155;
-        }
+        .board-container { display: flex; justify-content: center; align-items: center; width: 100%; height: calc(100vh - 160px); padding: 5px; }
+        @media (min-width: 768px) { .board-container { height: 80vh; padding: 10px; } }
 
-        /* Desktop Adjustment */
-        @media (min-width: 768px) {
-            .board-container {
-                height: 80vh;
-            }
-        }
-
-        #arrow-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
-        }
-
-        .square {
-            display: flex; justify-content: center; align-items: center;
-            position: relative; width: 100%; height: 100%; z-index: 1;
-        }
-
-        .square.white { background-color: #ebecd0; }
-        .square.black { background-color: #739552; }
-        
-        .square.selected { background-color: #f5f682 !important; } 
-        .square.last-move { background-color: #baca44 !important; } 
-        .square.premove { background-color: #f43f5e !important; opacity: 0.8; }
-        .square.viewing-history { background-color: #64748b !important; opacity: 0.8; }
-        .square.in-check { background: radial-gradient(ellipse at center, #ef4444 0%, #ef4444 40%, transparent 80%) !important; }
-
-        .square.possible-move::after {
-            content: ''; width: 30%; height: 30%;
-            background-color: rgba(0, 0, 0, 0.3); border-radius: 50%;
-            position: absolute; pointer-events: none; z-index: 2;
-        }
-        
-        .piece {
-            width: 100%; height: 100%;
-            background-size: 85%; background-repeat: no-repeat; background-position: center;
-            cursor: grab; z-index: 10; 
-        }
+        .chess-board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); aspect-ratio: 1/1; height: 100%; max-height: 100%; margin: 0 auto; border: 8px solid #3e2723; border-image: linear-gradient(#5d4037, #2b1d0e) 1; box-shadow: 0 20px 50px rgba(0,0,0,0.9); user-select: none; position: relative; touch-action: none; background-color: #334155; }
+        #arrow-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+        .square { display: flex; justify-content: center; align-items: center; position: relative; width: 100%; height: 100%; z-index: 1; }
+        .square.white { background-color: #e3c193; }
+        .square.black { background-color: #8b5a2b; }
+        .square.selected { box-shadow: inset 0 0 0 4px #ffd700; }
+        .square.last-move { box-shadow: inset 0 0 0 4px rgba(100, 255, 100, 0.6); }
+        .square.premove-source { background-color: rgba(220, 38, 38, 0.5) !important; }
+        .square.premove-dest { background-color: rgba(220, 38, 38, 0.5) !important; box-shadow: inset 0 0 0 2px #ffaaaa; }
+        .square.in-check { background: radial-gradient(ellipse at center, #8b0000 0%, transparent 70%) !important; }
+        .square.possible-move::after { content: ''; width: 25%; height: 25%; background-color: rgba(0,0,0,0.4); border-radius: 50%; position: absolute; pointer-events: none; z-index: 2; }
+        .piece { width: 100%; height: 100%; background-size: 90%; background-repeat: no-repeat; background-position: center; cursor: grab; z-index: 10; }
         .piece.dragging { opacity: 0.5; }
-
-        .circle-highlight::before {
-            content: ''; position: absolute; width: 90%; height: 90%;
-            border-radius: 50%; background-color: rgba(255, 170, 0, 0.5);
-            pointer-events: none; z-index: 4;
-        }
-
-        #drag-ghost {
-            position: fixed; width: 60px; height: 60px;
-            background-size: contain; background-repeat: no-repeat;
-            pointer-events: none; z-index: 9999; display: none;
-            transform: translate(-50%, -50%);
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        
-        .modal-overlay {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.8); 
-            display: flex; align-items: center; justify-content: center; z-index: 100;
-        }
-        
-        .active-history { background-color: #3b82f6; color: white; }
+        #drag-ghost { position: fixed; width: 60px; height: 60px; background-size: contain; background-repeat: no-repeat; pointer-events: none; z-index: 9999; display: none; transform: translate(-50%, -50%); }
+        .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+        .timer-box { font-family: monospace; font-size: 1.2rem; font-weight: bold; padding: 4px 8px; border-radius: 4px; background: #1a0f00; border: 1px solid #5d4037; width: 70px; text-align: center; }
+        .timer-active { background: #3e2723; border-color: #ffd700; color: #ffd700; box-shadow: 0 0 5px #ffd700; }
+        .active-history { background-color: var(--gold-dim); color: #fff; }
+        .lobby-tab { opacity: 0.5; border-bottom: 4px solid transparent; transition: all 0.3s; }
+        .lobby-tab.active { opacity: 1; border-bottom: 4px solid var(--gold); background: rgba(197, 160, 89, 0.1); }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col bg-slate-900" oncontextmenu="return false;"> 
+<body class="h-screen w-screen flex flex-col" oncontextmenu="return false;"> 
 
     <div id="drag-ghost"></div>
 
     <!-- MODALS -->
-    <div id="modal-confirm" class="modal-overlay hidden">
-        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm w-full text-center">
-            <h3 id="modal-title" class="text-xl font-bold text-white mb-2">Konfirmasi</h3>
-            <p id="modal-message" class="text-slate-300 mb-6">Yakin?</p>
-            <div class="flex gap-3 justify-center">
-                <button onclick="closeModal()" class="bg-slate-600 px-4 py-2 rounded text-white font-bold">Batal</button>
-                <button id="modal-yes-btn" class="bg-red-600 px-4 py-2 rounded text-white font-bold">Ya</button>
+    <div id="modal-create" class="modal-overlay hidden">
+        <div class="medieval-panel p-6 max-w-md w-full text-center rounded-lg m-4">
+            <h2 class="text-xl mb-4 border-b border-yellow-900/50 pb-2">Buat Pertempuran</h2>
+            <div class="grid grid-cols-2 gap-4 text-left">
+                <div>
+                    <label class="block text-[10px] text-yellow-600 mb-1 font-bold">PASUKAN</label>
+                    <div class="flex gap-1 mb-4">
+                        <button onclick="selectColor('white')" id="btn-color-white" class="flex-1 medieval-btn p-2"><i class="fas fa-chess-king text-white"></i></button>
+                        <button onclick="selectColor('random')" id="btn-color-random" class="flex-1 medieval-btn p-2 selected"><i class="fas fa-random"></i></button>
+                        <button onclick="selectColor('black')" id="btn-color-black" class="flex-1 medieval-btn p-2"><i class="fas fa-chess-king text-black"></i></button>
+                    </div>
+                    <div id="ai-settings" class="hidden">
+                        <label class="block text-[10px] text-yellow-600 mb-1 font-bold">KEKUATAN MUSUH</label>
+                        <select id="ai-elo" class="w-full medieval-input p-2 rounded text-xs text-center mb-4">
+                            <option value="0">Pemula</option>
+                            <option value="5">Menengah</option>
+                            <option value="10">Ahli</option>
+                            <option value="15">Master</option>
+                            <option value="20">Grandmaster</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-yellow-600 mb-1 font-bold">WAKTU (MENIT)</label>
+                    <div class="grid grid-cols-2 gap-1 mb-2">
+                        <button onclick="selectTime(1)" id="btn-time-1" class="medieval-btn p-2 text-xs">1</button>
+                        <button onclick="selectTime(3)" id="btn-time-3" class="medieval-btn p-2 text-xs">3</button>
+                        <button onclick="selectTime(5)" id="btn-time-5" class="medieval-btn p-2 text-xs">5</button>
+                        <button onclick="selectTime(10)" id="btn-time-10" class="medieval-btn p-2 text-xs selected">10</button>
+                        <button onclick="selectTime(30)" id="btn-time-30" class="medieval-btn p-2 text-xs">30</button>
+                        <button onclick="selectTime(-1)" id="btn-time--1" class="medieval-btn p-2 text-xs">∞</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeModal('modal-create')" class="flex-1 medieval-btn py-2">Batal</button>
+                <button id="btn-create-start" onclick="confirmCreateGame()" class="flex-1 medieval-btn primary py-2">Mulai</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-request" class="modal-overlay hidden">
-        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-sm w-full text-center animate-bounce">
-            <i class="fas fa-bell text-yellow-400 text-3xl mb-3"></i>
-            <h3 id="req-title" class="text-xl font-bold text-white mb-2">Permintaan</h3>
-            <p id="req-message" class="text-slate-300 mb-6">Lawan meminta...</p>
+    <div id="modal-gameover" class="modal-overlay hidden">
+        <div class="medieval-panel p-8 max-w-sm w-full text-center rounded-lg">
+            <h2 id="go-title" class="text-2xl mb-2">Selesai</h2>
+            <p id="go-message" class="text-slate-300 mb-6 font-medieval">...</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="startAnalysisFromModal()" class="medieval-btn primary py-3 rounded">Analisis</button>
+                <button onclick="closeModal('modal-gameover'); exitGame();" class="medieval-btn py-3 rounded">Kembali</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="modal-overlay hidden">
+        <div class="medieval-panel p-6 max-w-sm w-full text-center rounded-lg">
+            <h3 id="modal-title" class="text-lg mb-2">Konfirmasi</h3>
+            <p id="modal-message" class="text-slate-300 mb-6 font-medieval">...</p>
             <div class="flex gap-3 justify-center">
-                <button onclick="respondRequest(false)" class="bg-red-600 px-4 py-2 rounded text-white font-bold">Tolak</button>
-                <button onclick="respondRequest(true)" class="bg-green-600 px-4 py-2 rounded text-white font-bold">Terima</button>
+                <button id="modal-no-btn" class="medieval-btn px-4 py-2 rounded">Batal</button>
+                <button id="modal-yes-btn" class="medieval-btn danger px-4 py-2 rounded">Ya</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-request" class="modal-overlay hidden">
+        <div class="medieval-panel p-6 max-w-sm w-full text-center rounded-lg">
+            <h3 id="req-title" class="text-xl mb-2">Permintaan</h3>
+            <p id="req-message" class="text-slate-300 mb-6 font-medieval">...</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="respondRequest(false)" class="medieval-btn danger px-4 py-2 rounded">Tolak</button>
+                <button onclick="respondRequest(true)" class="medieval-btn primary px-4 py-2 rounded">Terima</button>
             </div>
         </div>
     </div>
 
     <!-- Navbar -->
-    <nav class="bg-slate-800 px-4 py-3 shadow-lg flex justify-between items-center h-[60px] shrink-0 border-b border-slate-700 relative z-50">
+    <nav class="bg-[#1a0f00] px-3 py-2 shadow-lg flex justify-between items-center h-[50px] shrink-0 border-b-2 border-[#3e2723] z-50">
         <div class="flex items-center gap-2">
-            <i class="fas fa-chess-queen text-yellow-500 text-2xl"></i>
-            <h1 class="text-lg font-bold text-white tracking-wide hidden sm:block">Catur Master Pro</h1>
+            <i class="fas fa-chess-knight text-yellow-600 text-lg"></i>
+            <h1 class="text-base tracking-widest text-[#c5a059] hidden sm:block">Kingdom Chess</h1>
         </div>
-        <div class="flex items-center gap-3">
-            <button id="sound-toggle" onclick="toggleSound()" class="text-slate-400 hover:text-white px-2">
-                <i class="fas fa-volume-up"></i>
-            </button>
-            <div id="connection-status" class="text-[10px] px-2 py-1 rounded bg-red-900 text-red-200 animate-pulse font-mono">...</div>
-            <span id="user-display" class="text-sm text-slate-300 font-semibold truncate max-w-[100px]"></span>
-            <button onclick="logout()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-white border border-slate-600">Keluar</button>
+        <div class="flex items-center gap-2">
+            <button id="sound-toggle" onclick="toggleSound()" class="text-[#8a6e3e] hover:text-[#c5a059] px-2"><i class="fas fa-volume-up"></i></button>
+            <div id="connection-status" class="text-[9px] px-2 py-0.5 rounded bg-black/50 text-green-500 border border-green-900">...</div>
+            <span id="user-display" class="text-xs text-[#e6d2b5] font-bold truncate max-w-[80px]"></span>
+            <button onclick="logout()" class="text-[10px] bg-[#3e2723] px-2 py-1 rounded text-[#e6d2b5] border border-[#5d4037]">Keluar</button>
         </div>
     </nav>
 
     <!-- Main Content -->
     <main class="flex-1 relative w-full h-full overflow-hidden flex flex-col md:flex-row">
-        
-        <!-- 1. LOGIN -->
-        <div id="screen-login" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4 z-[60]">
-            <div class="bg-slate-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border border-slate-700 text-center">
-                <i class="fas fa-chess text-5xl text-yellow-500 mb-6"></i>
-                <h2 class="text-2xl font-bold mb-2 text-white">Selamat Datang</h2>
-                <input type="text" id="username-input" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white mb-4 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="Nama Panggilan...">
-                <button onclick="handleLogin()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 rounded-lg shadow-lg">Masuk</button>
+        <!-- LOGIN -->
+        <div id="screen-login" class="absolute inset-0 z-[60] flex flex-col items-center justify-center p-4 bg-black/90">
+            <div class="medieval-panel p-8 max-w-xs w-full text-center rounded-lg">
+                <i class="fas fa-shield-alt text-5xl text-yellow-600 mb-4"></i>
+                <h2 class="text-2xl mb-1">Kingdom Chess</h2>
+                <input type="text" id="username-input" class="w-full medieval-input rounded p-2 mb-4 text-center mt-4 outline-none" placeholder="Nama Anda...">
+                <button onclick="handleLogin()" class="w-full medieval-btn primary py-2 rounded font-bold shadow-lg">Masuk</button>
             </div>
         </div>
 
-        <!-- 2. LOBBY -->
-        <div id="screen-lobby" class="absolute inset-0 bg-slate-900 hidden flex flex-col z-[50]">
-            <div class="w-full max-w-6xl mx-auto flex flex-col h-full p-4">
-                <div class="flex justify-between items-center mb-4 bg-slate-800 p-4 rounded-lg border border-slate-700">
-                    <h2 class="text-xl font-bold text-white"><i class="fas fa-server text-blue-400"></i> Lobby</h2>
+        <!-- LOBBY -->
+        <div id="screen-lobby" class="absolute inset-0 hidden flex flex-col z-[50] p-4">
+            <div class="w-full max-w-6xl mx-auto flex flex-col h-full">
+                <div class="medieval-panel p-3 rounded-lg mb-4 flex justify-between items-center shrink-0">
+                    <span class="text-yellow-600 font-bold text-sm">Aula Utama</span>
                     <div class="flex gap-2">
-                        <button onclick="createGame('ai', this)" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold text-sm shadow"><i class="fas fa-robot"></i> VS AI</button>
-                        <button onclick="createGame('human', this)" class="bg-yellow-500 hover:bg-yellow-400 text-slate-900 px-4 py-2 rounded font-bold text-sm shadow"><i class="fas fa-user-friends"></i> Buat Room</button>
+                        <button onclick="openCreateGameModal('ai')" class="medieval-btn px-3 py-1.5 rounded text-xs shadow"><i class="fas fa-robot mr-1"></i>VS AI</button>
+                        <button onclick="openCreateGameModal('human')" class="medieval-btn primary px-3 py-1.5 rounded text-xs shadow"><i class="fas fa-users mr-1"></i>Buat</button>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
-                    <div class="bg-slate-800 rounded-lg border border-slate-700 flex flex-col overflow-hidden">
-                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700 flex justify-between">
-                            <span>Room Tersedia</span>
-                            <span class="text-xs text-slate-500 font-normal">Auto-refresh (Hanya 1 Jam Terakhir)</span>
-                        </div>
-                        <div id="room-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+                <div class="flex mb-2 gap-2 shrink-0 md:hidden">
+                    <button onclick="switchLobbyTab('arena')" id="tab-btn-arena" class="lobby-tab active flex-1 medieval-btn p-2 rounded font-bold text-center text-xs"><i class="fas fa-chess-board mr-1"></i> ARENA</button>
+                    <button onclick="switchLobbyTab('history')" id="tab-btn-history" class="lobby-tab flex-1 medieval-btn p-2 rounded font-bold text-center text-xs"><i class="fas fa-history mr-1"></i> RIWAYAT</button>
+                </div>
+                <div class="flex-1 flex flex-col md:flex-row gap-4 overflow-hidden">
+                    <div id="lobby-panel-arena" class="flex-1 flex flex-col medieval-panel rounded-lg overflow-hidden">
+                        <div class="p-3 bg-[#1a0f00] border-b border-[#5d4037] flex justify-between items-center"><span class="text-yellow-600 font-bold text-sm">Daftar Room</span><span class="text-[10px] text-stone-500">Auto-refresh</span></div>
+                        <div id="room-list" class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#23170f]"></div>
                     </div>
-                    <div class="bg-slate-800 rounded-lg border border-slate-700 flex flex-col overflow-hidden">
-                        <div class="p-3 bg-slate-900 font-bold text-slate-300 border-b border-slate-700">Riwayat Lokal (Klik untuk Analisis)</div>
-                        <div id="history-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+                    <div id="lobby-panel-history" class="hidden md:flex flex-1 flex-col medieval-panel rounded-lg overflow-hidden">
+                        <div class="p-3 bg-[#1a0f00] border-b border-[#5d4037] text-yellow-600 font-bold text-sm">Jejak Pertempuran</div>
+                        <div id="history-list" class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#23170f]"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. GAME -->
-        <div id="screen-game" class="absolute inset-0 bg-slate-900 hidden flex flex-col md:flex-row z-[40]">
-            <!-- Board Container (Top/Left) -->
-            <div class="flex-1 flex flex-col items-center justify-center p-2 relative bg-slate-900 overflow-hidden min-h-0">
-                
-                <!-- Info Lawan -->
-                <div class="w-full max-w-lg flex justify-between items-end mb-2 px-1">
+        <!-- GAME -->
+        <div id="screen-game" class="absolute inset-0 hidden flex flex-col md:flex-row z-[40]">
+            <div class="flex-1 flex flex-col items-center justify-center relative min-h-0 bg-[#15100d]">
+                <div class="w-full max-w-[80vh] flex justify-between items-end mb-1 px-2 mt-2">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded bg-slate-700 border border-slate-500 flex items-center justify-center"><i class="fas fa-user text-slate-400"></i></div>
-                        <div>
-                            <span id="opponent-name" class="font-bold text-sm text-slate-200 block">Lawan</span>
-                            <span id="game-status" class="text-xs text-yellow-400 font-mono"></span>
-                        </div>
+                        <div class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#5d4037] flex items-center justify-center text-yellow-600"><i class="fas fa-user"></i></div>
+                        <div><span id="opponent-name" class="font-bold text-xs block text-[#e6d2b5] truncate max-w-[100px]">Lawan</span><span id="game-status" class="text-[10px] text-yellow-500 font-mono"></span></div>
                     </div>
-                    <div id="opponent-timer" class="bg-slate-800 px-2 py-1 rounded text-white font-mono text-sm border border-slate-700">--:--</div>
+                    <div id="timer-opponent" class="timer-box text-white">--:--</div>
                 </div>
-
-                <!-- BOARD WRAPPER -->
                 <div class="board-container">
-                    <div id="chess-board" class="chess-board rounded shadow-2xl">
-                        <!-- SVG will be injected -->
+                    <div id="chess-board" class="chess-board rounded-sm"></div>
+                </div>
+                <div class="w-full max-w-[80vh] flex justify-between items-start mt-1 px-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#c5a059] flex items-center justify-center text-yellow-400"><i class="fas fa-user"></i></div>
+                        <div><span id="player-name-display" class="font-bold text-xs block text-[#c5a059] truncate max-w-[100px]">Anda</span><span id="turn-indicator" class="text-[10px] text-stone-400">...</span></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="flipBoard()" class="text-[#8a6e3e]"><i class="fas fa-sync-alt"></i></button>
+                        <div id="timer-self" class="timer-box text-white">--:--</div>
                     </div>
                 </div>
-
-                <!-- Info Kita -->
-                <div class="w-full max-w-lg flex justify-between items-start mt-2 px-1">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded bg-indigo-900 border border-indigo-500 flex items-center justify-center"><i class="fas fa-user text-indigo-300"></i></div>
-                        <div>
-                            <span id="player-name-display" class="font-bold text-sm text-slate-200 block">Anda</span>
-                            <span id="turn-indicator" class="text-[10px] text-slate-500">Giliran...</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="flipBoard()" class="text-slate-400 hover:text-white"><i class="fas fa-sync-alt"></i></button>
-                        <div id="my-timer" class="bg-slate-800 px-2 py-1 rounded text-white font-mono text-sm border border-slate-700">--:--</div>
-                    </div>
+                <div class="md:hidden w-full flex justify-around p-2 bg-[#2b1d0e] border-t border-[#5d4037]">
+                    <button onclick="reqTakeback()" class="text-stone-400 hover:text-white"><i class="fas fa-undo"></i></button>
+                    <button onclick="reqDraw()" class="text-stone-400 hover:text-white"><i class="fas fa-handshake"></i></button>
+                    <button onclick="confirmResign()" class="text-red-500 hover:text-red-400"><i class="fas fa-flag"></i></button>
                 </div>
             </div>
-
-            <!-- Controls Container (Bottom/Right) -->
-            <div class="w-full md:w-[350px] bg-slate-800 border-l border-slate-700 flex flex-col h-[40vh] md:h-full shrink-0 shadow-xl z-20">
-                <div class="flex bg-slate-900 border-b border-slate-700 shrink-0">
-                    <button class="flex-1 py-2 text-xs font-bold text-blue-400 border-b-2 border-blue-500 uppercase">Langkah</button>
-                    <button class="flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 uppercase" onclick="alert('Chat segera hadir!')">Chat</button>
+            <div class="hidden md:flex w-[320px] medieval-panel border-l-4 border-[#2b1d0e] flex-col h-full shrink-0 z-20">
+                <div class="flex bg-[#1a0f00] border-b border-[#5d4037] shrink-0">
+                    <div class="flex-1 py-2 text-center text-xs font-bold text-[#c5a059] uppercase">Langkah</div>
                 </div>
-                <div class="flex-1 overflow-y-auto bg-slate-800 p-0" id="pgn-container">
-                    <table class="w-full text-sm text-left border-collapse">
-                        <thead class="bg-slate-850 text-slate-500 text-[10px] uppercase sticky top-0">
-                            <tr><th class="px-2 py-1 w-8">#</th><th class="px-2 py-1">Putih</th><th class="px-2 py-1">Hitam</th></tr>
-                        </thead>
-                        <tbody id="move-history" class="text-slate-300 font-mono"></tbody>
-                    </table>
+                <div class="flex-1 overflow-y-auto bg-[#23170f] p-0 custom-scroll" id="pgn-container">
+                    <table class="w-full text-sm text-left border-collapse"><tbody id="move-history" class="text-[#e6d2b5] font-mono"></tbody></table>
                 </div>
-                <div class="bg-slate-850 p-3 border-t border-slate-700 shrink-0">
-                    
-                    <!-- Kontrol Main -->
-                    <div id="play-controls" class="grid grid-cols-4 gap-2 mb-2">
-                        <button onclick="reqTakeback()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Mundur Langkah"><i class="fas fa-undo-alt"></i></button>
-                        <button onclick="reqDraw()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded" title="Ajukan Remis"><i class="fas fa-handshake"></i></button>
-                        <button onclick="confirmResign()" class="bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 py-2 rounded col-span-2 text-xs font-bold"><i class="fas fa-flag"></i> MENYERAH</button>
+                <div class="bg-[#1a0f00] p-4 border-t border-[#5d4037] shrink-0">
+                    <div id="play-controls" class="grid grid-cols-2 gap-2">
+                        <button onclick="reqTakeback()" class="medieval-btn py-2 rounded text-xs">Mundur</button>
+                        <button onclick="reqDraw()" class="medieval-btn py-2 rounded text-xs">Remis</button>
+                        <button onclick="confirmResign()" class="medieval-btn danger col-span-2 py-2 rounded text-xs font-bold">MENYERAH / BATAL</button>
                     </div>
-
-                    <!-- Kontrol Analisis -->
                     <div id="analysis-controls" class="hidden flex-col gap-2">
-                        <div class="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-700">
-                             <span class="text-xs font-bold text-blue-400">ANALISIS (Gerakkan Bidak)</span>
-                             <span id="eval-score" class="text-xs font-mono text-white">0.0</span>
+                        <div class="bg-[#2b1d0e] p-2 rounded border border-[#5d4037]">
+                             <div class="flex justify-between mb-1"><span class="text-[10px] text-blue-400">EVAL</span><span id="eval-score" class="text-[10px]">0.0</span></div>
+                             <div class="h-1 bg-black rounded-full overflow-hidden"><div id="eval-fill" class="h-full bg-white" style="width: 50%"></div></div>
+                             <p id="best-move-text" class="text-[10px] text-center mt-1 text-[#c5a059]">...</p>
                         </div>
-                        <div class="eval-bar-container"><div id="eval-fill" class="eval-bar-fill"></div></div>
-                        <p id="best-move-text" class="text-[10px] text-slate-400 italic text-center min-h-[16px] mt-1">...</p>
-                        <button onclick="exitGame()" class="w-full bg-slate-600 hover:bg-slate-500 text-white py-2 rounded font-bold text-sm"><i class="fas fa-arrow-left"></i> KEMBALI KE LOBBY</button>
+                        <button onclick="exitGame()" class="w-full medieval-btn py-2 rounded text-xs">KEMBALI</button>
                     </div>
                 </div>
             </div>
@@ -276,655 +246,349 @@
     </main>
 
     <script>
-        // CONFIG
-        const firebaseConfig = {
-            apiKey: "AIzaSyDmer19KTaijOz3bTdknEEs5dqwKNt6HQg",
-            authDomain: "masjid-pekalongan.firebaseapp.com",
-            projectId: "masjid-pekalongan",
-            storageBucket: "masjid-pekalongan.firebasestorage.app",
-            messagingSenderId: "619031365600",
-            appId: "1:619031365600:web:35061354a11cf3f72e4d85",
-            measurementId: "G-R511G99W8R"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = 'chess-v3-final';
+        const firebaseConfig={apiKey:"AIzaSyDmer19KTaijOz3bTdknEEs5dqwKNt6HQg",authDomain:"masjid-pekalongan.firebaseapp.com",projectId:"masjid-pekalongan",storageBucket:"masjid-pekalongan.firebasestorage.app",messagingSenderId:"619031365600",appId:"1:619031365600:web:35061354a11cf3f72e4d85",measurementId:"G-R511G99W8R"};
+        try{firebase.initializeApp(firebaseConfig);}catch(e){}
+        const auth=firebase.auth(), db=firebase.firestore(), appId='chess-v3-final';
 
-        // STATE
-        let currentUser, currentGameId, gameData;
-        let chess = new Chess();
-        let boardOrientation = 'white';
-        let stockfishWorker = null;
-        let gameUnsubscribe = null; 
-        let soundEnabled = true;
-
-        // Interaction State
-        let selectedSquare = null;
-        let premove = null; 
-        let draggedPiece = null;
-        let isDragging = false;
-        let dragStartSquare = null;
+        let currentUser=null, currentGameId=null, gameData=null;
+        let chess=new Chess(), boardOrientation='white', playerColor='white', stockfishWorker=null, gameUnsubscribe=null;
+        let soundEnabled=true, selectedSquare=null, premoveQueue=[], draggedPiece=null, isDragging=false, dragStartSquare=null, hasMoved=false;
+        let arrows=[], circleHighlights=[], isRightClicking=false, rightClickStart=null, rightClickCurrent=null;
+        let isAI=false, isAnalysisMode=false, viewHistoryIndex=-1, isReplayMode=false;
+        let aiLevel=5, whiteTime=600, blackTime=600, timerInterval=null, selectedTime=10, selectedColor='random', windowPendingGameType='human', aiTimeout=null;
         
-        // Arrow & Highlights State
-        let arrows = [];
-        let circleHighlights = []; 
-        let isRightClicking = false;
-        let rightClickStart = null;
-        let rightClickCurrent = null;
+        // DEVICE DETECTION
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // View State
-        let isAI = false;
-        let isAnalysisMode = false;
-        let viewHistoryIndex = -1;
-        let isReplayMode = false;
-        
-        // Audio
         const audioFiles = {
-            move: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-self.mp3',
-            capture: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/capture.mp3',
-            check: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/move-check.mp3',
-            start: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-start.mp3',
-            end: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/game-end.mp3',
-            notify: 'https://images.chesscomfiles.com/chess-themes/sounds/_Common/standard/notify.mp3'
+            move: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/move-self.mp3',
+            capture: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/capture.mp3',
+            check: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/notify.mp3',
+            start: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/game-start.mp3', 
+            end: 'https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/game-end.mp3'
         };
+        function getPieceUrl(c, t) { return `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${c}${t}.png`; }
 
-        function getPieceUrl(color, type) {
-            return `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${color}${type}.png`;
-        }
-
-        // --- INIT ---
         async function initApp() {
-            try {
-                const blob = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js').then(r => r.blob());
-                stockfishWorker = new Worker(URL.createObjectURL(blob));
-                stockfishWorker.onmessage = handleStockfishMessage;
-            } catch (e) { console.warn("SF Error", e); }
-
-            const savedName = localStorage.getItem('chess_username');
-            if (savedName) document.getElementById('username-input').value = savedName;
-
-            auth.onAuthStateChanged((user) => {
-                if (user) {
-                    currentUser = user;
-                    updateConnectionStatus(true);
-                    if (localStorage.getItem('chess_username') && !document.getElementById('screen-login').classList.contains('hidden')) handleLogin();
-                } else {
-                    updateConnectionStatus(false);
-                    auth.signInAnonymously();
-                }
-            });
-
-            document.addEventListener('mouseup', endDrag);
-            document.addEventListener('touchend', endDrag);
-            document.addEventListener('contextmenu', event => event.preventDefault());
-        }
-
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            const btn = document.getElementById('sound-toggle');
-            if(soundEnabled) {
-                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-                btn.classList.remove('text-red-500');
+            try { const b = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js').then(r => r.blob()); stockfishWorker = new Worker(URL.createObjectURL(b)); stockfishWorker.onmessage = handleStockfishMessage; } catch (e) {}
+            const s = localStorage.getItem('chess_username'); if (s) document.getElementById('username-input').value = s;
+            auth.onAuthStateChanged((u) => { if (u) { currentUser = u; updateConnectionStatus(true); if (s && !document.getElementById('screen-login').classList.contains('hidden')) handleLogin(); } else { updateConnectionStatus(false); auth.signInAnonymously(); } });
+            
+            // Interaction Event Listeners based on Device
+            if (isMobile) {
+                // Mobile: Only clicks
+                // We don't attach drag listeners to pieces
             } else {
-                btn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                btn.classList.add('text-red-500');
+                // Desktop: Drag & Drop (and right click)
+                document.addEventListener('mousemove', moveGhost); 
+                document.addEventListener('mouseup', endDrag);
+                document.addEventListener('contextmenu', e => e.preventDefault());
             }
         }
 
-        function updateConnectionStatus(connected) {
-            const el = document.getElementById('connection-status');
-            el.innerText = connected ? "Online" : "Connecting...";
-            el.className = connected ? "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200" : "text-[10px] px-2 py-1 rounded bg-red-900 text-red-200 animate-pulse";
-        }
+        // --- INTERACTION LOGIC (SPLIT) ---
+        
+        // COMMON: Square Click Handler
+        function onSquareClick(square) {
+            if (arrows.length > 0 || circleHighlights.length > 0) clearArrowsAndHighlights();
+            if (viewHistoryIndex !== -1) return;
 
-        async function handleLogin() {
-            const name = document.getElementById('username-input').value.trim();
-            if (!name) return;
-            localStorage.setItem('chess_username', name);
-            document.getElementById('user-display').innerText = name;
-            showScreen('lobby');
-            listenToLobby();
-            loadHistory();
-        }
-
-        function logout() { localStorage.removeItem('chess_username'); location.reload(); }
-
-        function loadHistory() {
-            const histList = document.getElementById('history-list');
-            if(!histList) return;
-            const history = JSON.parse(localStorage.getItem('chess_history') || '[]');
-            histList.innerHTML = '';
-            if (history.length === 0) {
-                histList.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Belum ada riwayat.</div>';
-                return;
-            }
-            history.reverse().forEach((game, idx) => {
-                const el = document.createElement('div');
-                const resClass = game.result === 'win' ? 'text-green-400' : (game.result === 'loss' ? 'text-red-400' : 'text-yellow-400');
-                el.className = "bg-slate-700/30 p-2 rounded text-xs mb-2 border border-slate-700 flex justify-between items-center cursor-pointer hover:bg-slate-700 transition";
-                el.innerHTML = `
-                    <div class="flex flex-col">
-                        <span class="text-slate-300 font-semibold">vs ${game.opponent}</span>
-                        <span class="text-[10px] text-slate-500">${new Date(game.date).toLocaleDateString()}</span>
-                    </div>
-                    <span class="${resClass} font-bold uppercase border border-slate-600 px-1 rounded">${game.result}</span>
-                `;
-                el.onclick = () => loadReplayGame(game);
-                histList.appendChild(el);
-            });
-        }
-
-        function loadReplayGame(game) {
-            currentGameId = null;
-            isReplayMode = true;
-            isAnalysisMode = true;
-            boardOrientation = 'white';
+            const piece = chess.get(square);
+            const myColor = playerColor.charAt(0);
             
-            if (!game.pgn) {
-                alert("Maaf, riwayat lama tidak memiliki data langkah lengkap (PGN).");
-                return;
-            }
-
-            chess.load_pgn(game.pgn);
-            viewHistoryIndex = -1;
-            
-            document.getElementById('opponent-name').innerText = game.opponent;
-            document.getElementById('player-name-display').innerText = localStorage.getItem('chess_username');
-            
-            showScreen('game');
-            document.getElementById('play-controls').classList.add('hidden');
-            document.getElementById('analysis-controls').classList.remove('hidden');
-            
-            renderBoard();
-            updateMoveHistoryUI();
-            
-            if(stockfishWorker) {
-                stockfishWorker.postMessage('position fen ' + chess.fen());
-                stockfishWorker.postMessage('go depth 15');
-            }
-        }
-
-        function handleRightClickDown(e, square) { if(!square) return; isRightClicking = true; rightClickStart = square; rightClickCurrent = square; }
-        function handleRightClickMove(e, square) { if(isRightClicking && square && rightClickCurrent !== square) { rightClickCurrent = square; drawArrows(); } }
-        function handleRightClickUp(e, square) {
-            if(!isRightClicking) return; isRightClicking = false;
-            if (rightClickStart === square) {
-                const index = circleHighlights.indexOf(square);
-                if (index > -1) circleHighlights.splice(index, 1); else circleHighlights.push(square);
-            } else if (square) {
-                const existingIndex = arrows.findIndex(a => a.from === rightClickStart && a.to === square);
-                if (existingIndex > -1) arrows.splice(existingIndex, 1); else arrows.push({ from: rightClickStart, to: square });
-            }
-            rightClickStart = null; rightClickCurrent = null; renderBoard(); 
-        }
-        function clearArrowsAndHighlights() { arrows = []; circleHighlights = []; renderBoard(); }
-        function drawArrows() {
-            const svg = document.getElementById('arrow-layer'); if(!svg) return; svg.innerHTML = ''; 
-            const getCoords = (sq) => {
-                const col = sq.charCodeAt(0) - 97; const row = 8 - parseInt(sq[1]); 
-                let x = boardOrientation === 'white' ? col : 7 - col; let y = boardOrientation === 'white' ? row : 7 - row;
-                return { x: (x * 12.5) + 6.25, y: (y * 12.5) + 6.25 };
-            };
-            arrows.forEach(a => renderArrowSvg(svg, getCoords(a.from), getCoords(a.to), '#ffaa00'));
-            if (isRightClicking && rightClickStart && rightClickCurrent && rightClickStart !== rightClickCurrent) {
-                renderArrowSvg(svg, getCoords(rightClickStart), getCoords(rightClickCurrent), '#ffaa00', 0.6);
-            }
-        }
-        function renderArrowSvg(svg, start, end, color, opacity = 0.8) {
-            const angle = Math.atan2(end.y - start.y, end.x - start.x);
-            const lineEnd = { x: end.x - 3 * Math.cos(angle), y: end.y - 3 * Math.sin(angle) };
-            const id = `arrow-${Math.random().toString(36).substr(2,9)}`;
-            
-            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-            const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
-            marker.setAttribute("id", id); marker.setAttribute("markerWidth", "4"); marker.setAttribute("markerHeight", "4");
-            marker.setAttribute("refX", "2"); marker.setAttribute("refY", "2"); marker.setAttribute("orient", "auto");
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", "M0,0 L4,2 L0,4 Z"); path.setAttribute("fill", color); path.setAttribute("fill-opacity", opacity);
-            marker.appendChild(path); defs.appendChild(marker); svg.appendChild(defs);
-
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", start.x); line.setAttribute("y1", start.y); line.setAttribute("x2", lineEnd.x); line.setAttribute("y2", lineEnd.y);
-            line.setAttribute("stroke", color); line.setAttribute("stroke-width", "2.5"); line.setAttribute("stroke-opacity", opacity);
-            line.setAttribute("marker-end", `url(#${id})`); svg.appendChild(line);
-        }
-
-        // --- LOBBY (FILTERED) ---
-        function listenToLobby() {
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games')
-                .where('status', '==', 'waiting').limit(20).onSnapshot((snap) => {
-                    const listEl = document.getElementById('room-list'); listEl.innerHTML = '';
-                    if (snap.empty) { listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Kosong.</div>'; return; }
-                    
-                    let games = []; 
-                    const now = Date.now();
-                    const oneHour = 3600000;
-
-                    snap.forEach(doc => {
-                        const d = doc.data();
-                        // FILTER: Hapus room yang lebih tua dari 1 jam
-                        if (d.createdAt && (now - d.createdAt.toMillis() < oneHour)) {
-                            games.push({id: doc.id, ...d});
+            // Premove Cancellation (Any click outside valid move flow)
+            if (premoveQueue.length > 0) {
+                if (chess.turn() === myColor) {
+                    // My turn now, clear queue
+                    premoveQueue = []; renderBoard();
+                } else {
+                    // Opponent turn
+                    // Mobile: Click empty or invalid -> Cancel
+                    if (!piece || piece.color !== myColor) {
+                        // Is this a destination click for current selection?
+                        if (selectedSquare) {
+                            handleMoveAttempt(selectedSquare, square);
+                            return;
                         }
-                    });
-
-                    games.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-                    
-                    if (games.length === 0) {
-                        listEl.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">Tidak ada room baru.</div>';
-                        return;
+                        premoveQueue = []; renderBoard();
                     }
-
-                    games.forEach(g => {
-                        if (g.white.id === currentUser?.uid) return;
-                        const div = document.createElement('div');
-                        div.className = "bg-slate-700 p-2 rounded flex justify-between items-center border border-slate-600 mb-2";
-                        div.innerHTML = `<span class="text-sm font-bold text-white">${g.white.name}</span><button onclick="joinGame('${g.id}')" class="bg-blue-600 px-3 py-1 rounded text-xs text-white">MAIN</button>`;
-                        listEl.appendChild(div);
-                    });
-                });
-        }
-
-        async function createGame(type, btn) {
-            if(!currentUser) return alert("Belum konek!");
-            btn.disabled = true;
-            try {
-                const gameId = currentUser.uid + '_' + Date.now();
-                if (type === 'ai') { isAI = true; startGameLocal(gameId, 'white', 'Stockfish AI'); } 
-                else {
-                    isAI = false;
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(gameId).set({
-                        white: { name: currentUser.displayName || localStorage.getItem('chess_username'), id: currentUser.uid },
-                        black: null, fen: 'start', pgn: '', status: 'waiting', createdAt: firebase.firestore.FieldValue.serverTimestamp(), requests: {}
-                    });
-                    startGameFirestore(gameId, 'white');
                 }
-            } catch(e) { alert(e.message); } finally { btn.disabled = false; }
+            }
+
+            if (selectedSquare === null) {
+                if (piece) { selectedSquare = square; renderBoard(); }
+            } else {
+                if (selectedSquare === square) { selectedSquare = null; renderBoard(); return; }
+                
+                // Allow switching selection to own piece (unless specific premove capture logic)
+                if (piece && piece.color === myColor && !isAnalysisMode) { 
+                    // Mobile Premove Exception: If it's opponent turn, and I click Piece A then Piece B (both mine), 
+                    // and Piece B is a valid target for A (capture own piece logic for coordinates), treat as move.
+                    // But standard chess, you can't capture own piece.
+                    // So switching is fine.
+                    selectedSquare = square; renderBoard(); return; 
+                }
+
+                handleMoveAttempt(selectedSquare, square);
+            }
         }
 
-        async function joinGame(id) {
-            isAI = false;
-            try {
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id).update({
-                    black: { name: localStorage.getItem('chess_username'), id: currentUser.uid }, status: 'playing'
-                });
-                startGameFirestore(id, 'black');
-            } catch(e) { alert("Penuh/Hilang"); }
+        // DESKTOP: Drag Start
+        function startDrag(e, square, el) {
+            if (isMobile) return; // Disable drag on mobile
+            if (!isAnalysisMode && viewHistoryIndex !== -1) return;
+            e.preventDefault(); 
+            isDragging = true; dragStartSquare = square; draggedPiece = el;
+            selectedSquare = square; renderBoard(); 
+            const ghost = document.getElementById('drag-ghost');
+            if(ghost) { ghost.style.backgroundImage = el.style.backgroundImage; ghost.style.display = 'block'; moveGhost(e); }
+        }
+        
+        function moveGhost(e) {
+            if(!isDragging) return;
+            const ghost = document.getElementById('drag-ghost');
+            if(ghost) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; }
+        }
+        
+        function endDrag(e) {
+            if(!isDragging) return;
+            isDragging = false;
+            const ghost = document.getElementById('drag-ghost');
+            if(ghost) ghost.style.display = 'none'; 
+            
+            const el = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.classList.contains('square'));
+            if (el) {
+                const target = el.dataset.square;
+                if (target !== dragStartSquare) handleMoveAttempt(dragStartSquare, target);
+                else onSquareClick(target); // Click on same square
+            }
         }
 
-        // --- GAME LOGIC ---
-        function startGameLocal(id, orientation, oppName) { setupGameCommon(id, orientation, oppName); playSound('start'); if(orientation==='black') setTimeout(makeAIMove, 500); }
-        function startGameFirestore(id, orientation) {
-            setupGameCommon(id, orientation, "Menunggu...");
+        function handleMoveAttempt(from, to) {
+            if (isAnalysisMode) {
+                if(chess.move({ from, to, promotion: 'q' })) {
+                    renderBoard(); updateMoveHistoryUI(); playSound('move');
+                    if(stockfishWorker) { stockfishWorker.postMessage('position fen '+chess.fen()); stockfishWorker.postMessage('go depth 15'); }
+                } else { selectedSquare = null; renderBoard(); }
+                return;
+            }
+
+            const myColor = playerColor.charAt(0);
+            
+            if (chess.turn() === myColor) {
+                const move = chess.move({ from, to, promotion: 'q' });
+                selectedSquare = null;
+                if (move) {
+                    clearArrowsAndHighlights();
+                    renderBoard(); updateMoveHistoryUI();
+                    if(chess.in_check()) playSound('check'); else if(move.flags.includes('c')) playSound('capture'); else playSound('move');
+                    startTimer(); 
+                    if (isAI) { checkGameOver(true); setTimeout(makeAIMove, 500); } else { pushMoveToFirestore(); }
+                } else { renderBoard(); }
+            } 
+            else {
+                // PREMOVE LOGIC
+                // Prevent impossible geometry (e.g. Knight moving like Rook)
+                // Use temp board with swapped turn to validate geometry
+                const temp = new Chess(chess.fen());
+                const tokens = temp.fen().split(' ');
+                tokens[1] = myColor; // Force turn
+                const fenForce = tokens.join(' ');
+                if(temp.load(fenForce)) {
+                    if (temp.move({ from, to, promotion: 'q' })) {
+                        premoveQueue.push({ from, to });
+                        selectedSquare = null;
+                        renderBoard();
+                    } else { selectedSquare = null; renderBoard(); } // Invalid geometry
+                } else { selectedSquare = null; renderBoard(); }
+            }
+        }
+
+        // --- FIREBASE & TIMER SYNC ---
+        async function pushMoveToFirestore() {
+            if (!currentGameId) return;
+            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
+                fen: chess.fen(), pgn: chess.pgn(), lastMove: { t: Date.now() }, whiteTime: whiteTime, blackTime: blackTime
+            });
+            checkGameOver(true);
+        }
+
+        function startGameFirestore(id, o) {
+            setupGameCommon(id, o, "Menunggu...");
             if(gameUnsubscribe) gameUnsubscribe();
+            
             gameUnsubscribe = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id).onSnapshot(doc => {
                 if(!doc.exists) return;
                 gameData = doc.data();
-                const opp = orientation === 'white' ? gameData.black : gameData.white;
-                document.getElementById('opponent-name').innerText = opp ? opp.name : "Menunggu...";
-                if (gameData.status === 'playing' && document.getElementById('opponent-name').innerText === "Menunggu...") playSound('start');
                 
-                checkRequests(gameData.requests, orientation);
-
-                if (viewHistoryIndex === -1 && gameData.fen && gameData.fen !== 'start' && chess.fen() !== gameData.fen) {
-                    if(gameData.pgn) chess.load_pgn(gameData.pgn); else chess.load(gameData.fen);
-                    
-                    if (premove) {
-                        const move = chess.move({ from: premove.from, to: premove.to, promotion: 'q' });
-                        if (move) { premove = null; pushMoveToFirestore(); } else { premove = null; } 
-                    }
-
-                    const lastMove = chess.history({verbose:true}).pop();
-                    if(chess.in_check()) playSound('check');
-                    else if (lastMove && lastMove.flags.includes('c')) playSound('capture');
-                    else playSound('move');
-                    
-                    renderBoard(); updateMoveHistoryUI(); checkGameOver(false);
-                }
+                const opp = o==='white'?gameData.black:gameData.white;
+                const el=document.getElementById('opponent-name');
+                if(el)el.innerText=opp?opp.name:"Menunggu...";
                 
-                if (gameData.status === 'finished' && !isAnalysisMode) {
-                    let result = gameData.winner === localStorage.getItem('chess_username') ? 'win' : (gameData.winner === 'draw' ? 'draw' : 'loss');
-                    handleGameOver(result, true);
-                }
+                if (gameData.whiteTime !== undefined) whiteTime = gameData.whiteTime;
+                if (gameData.blackTime !== undefined) blackTime = gameData.blackTime;
+                updateTimerDisplay();
+
+                if(gameData.status==='playing'&&document.getElementById('timer-self').innerText==="--:--"){ 
+                    selectedTime=gameData.timeControl||10; 
+                    const t=selectedTime===-1?999999:selectedTime*60; 
+                    if(whiteTime === 600 && blackTime === 600) { whiteTime=t; blackTime=t; }
+                    updateTimerDisplay(); startTimer(); playSound('start'); 
+                } 
+                
+                if(gameData.requests?.status==='pending'&&gameData.requests.sender!==currentUser.uid) showRequestModal(gameData.requests.type); 
+                
+                if(viewHistoryIndex===-1 && gameData.fen && gameData.fen!=='start' && chess.fen()!==gameData.fen){ 
+                    if(gameData.pgn)chess.load_pgn(gameData.pgn); else chess.load(gameData.fen); 
+                    processPremoves(); 
+                    const last=chess.history({verbose:true}).pop(); 
+                    if(chess.in_check())playSound('check'); else if(last&&last.flags.includes('c'))playSound('capture'); else playSound('move'); 
+                    renderBoard(); updateMoveHistoryUI(); checkGameOver(false); startTimer(); 
+                } 
+                
+                if(gameData.status==='finished'&&!isAnalysisMode){ 
+                    clearInterval(timerInterval); 
+                    let r='draw'; 
+                    if(gameData.winner!=='draw') r=gameData.winner===localStorage.getItem('chess_username')?'win':'loss'; 
+                    handleGameOver(r); 
+                } 
             });
         }
 
-        function setupGameCommon(id, orientation, oppName) {
-            currentGameId = id; boardOrientation = orientation; chess.reset(); isAnalysisMode = false; isReplayMode = false; premove = null; viewHistoryIndex = -1; selectedSquare = null;
-            clearArrowsAndHighlights();
-            document.getElementById('opponent-name').innerText = oppName;
-            document.getElementById('player-name-display').innerText = localStorage.getItem('chess_username');
-            showScreen('game');
-            document.getElementById('play-controls').classList.remove('hidden');
-            document.getElementById('analysis-controls').classList.add('hidden');
-            renderBoard(); updateMoveHistoryUI();
+        function processPremoves() {
+            if (premoveQueue.length === 0) return;
+            const moveData = premoveQueue.shift();
+            const move = chess.move({ from: moveData.from, to: moveData.to, promotion: 'q' });
+            if (move) {
+                clearArrowsAndHighlights();
+                playSound('move');
+                if (!isAI) pushMoveToFirestore();
+                if (premoveQueue.length > 0) setTimeout(processPremoves, 200);
+            } else { premoveQueue = []; playSound('check'); }
         }
 
         // --- RENDER ---
         function renderBoard() {
-            const boardEl = document.getElementById('chess-board');
-            if(!boardEl) return;
+            const boardEl = document.getElementById('chess-board'); if(!boardEl) return;
             boardEl.innerHTML = '<svg id="arrow-layer" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
 
             let boardState = chess.board();
-            let currentTurn = chess.turn();
-            
-            if (viewHistoryIndex !== -1) {
-                try {
-                    const tempChess = new Chess();
-                    if(isReplayMode || chess.pgn().length > 0) {
-                        const history = chess.history();
-                        for(let i=0; i<=viewHistoryIndex; i++) tempChess.move(history[i]);
-                        boardState = tempChess.board();
-                        currentTurn = tempChess.turn();
-                    }
-                } catch(e) { viewHistoryIndex = -1; }
+            if (viewHistoryIndex !== -1) { const t = new Chess(); const h = chess.history(); for(let i=0; i<=viewHistoryIndex; i++) t.move(h[i]); boardState = t.board(); }
+            else if (premoveQueue.length > 0) {
+                premoveQueue.forEach(pm => {
+                    const fC = pm.from.charCodeAt(0)-97, fR = 8-parseInt(pm.from[1]);
+                    const tC = pm.to.charCodeAt(0)-97, tR = 8-parseInt(pm.to[1]);
+                    if(boardState[fR][fC]) { boardState[tR][tC] = boardState[fR][fC]; boardState[fR][fC] = null; }
+                });
             }
 
-            const isWhite = boardOrientation === 'white';
-            const rows = isWhite ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
-            const cols = isWhite ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
+            const rows = boardOrientation === 'white' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
+            const cols = boardOrientation === 'white' ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
             const lastMove = chess.history({verbose:true}).pop();
-            const inCheck = (viewHistoryIndex === -1) ? chess.in_check() : false;
 
             rows.forEach(r => {
                 cols.forEach(c => {
                     const square = String.fromCharCode(97+c) + (8-r);
                     const piece = boardState[r][c];
-                    
                     const div = document.createElement('div');
                     div.className = `square ${(r+c)%2===0 ? 'white' : 'black'}`;
                     div.dataset.square = square;
 
-                    if (viewHistoryIndex !== -1) div.classList.add('viewing-history');
                     if (selectedSquare === square) div.classList.add('selected');
                     if (viewHistoryIndex === -1 && lastMove && (lastMove.from === square || lastMove.to === square)) div.classList.add('last-move');
-                    if (premove && (premove.from === square || premove.to === square)) div.classList.add('premove');
-                    if (inCheck && piece && piece.type === 'k' && piece.color === currentTurn) div.classList.add('in-check');
+                    const pmIndex = premoveQueue.findIndex(pm => pm.from === square || pm.to === square);
+                    if (pmIndex !== -1) { const pm = premoveQueue[pmIndex]; if (pm.from === square) div.classList.add('premove-source'); if (pm.to === square) div.classList.add('premove-dest'); }
+                    if (piece && piece.type === 'k' && chess.in_check() && piece.color === chess.turn() && viewHistoryIndex === -1 && premoveQueue.length===0) div.classList.add('in-check');
                     if (circleHighlights.includes(square)) div.classList.add('circle-highlight');
-
-                    if (selectedSquare && viewHistoryIndex === -1) {
-                        const moves = chess.moves({square: selectedSquare, verbose: true});
-                        if (moves.find(m => m.to === square)) div.classList.add('possible-move');
-                    }
-
+                    if (selectedSquare && viewHistoryIndex === -1) { if (chess.turn() === playerColor.charAt(0) || isAnalysisMode) { const moves = chess.moves({square: selectedSquare, verbose: true}); if (moves.find(m => m.to === square)) div.classList.add('possible-move'); } }
                     if (piece) {
-                        const img = document.createElement('div');
-                        img.className = 'piece';
+                        const img = document.createElement('div'); img.className = 'piece'; 
+                        if (premoveQueue.length > 0 && premoveQueue.some(pm => pm.to === square)) img.classList.add('premove-piece');
                         img.style.backgroundImage = `url('${getPieceUrl(piece.color, piece.type)}')`;
-                        if (viewHistoryIndex === -1 && (isAnalysisMode || piece.color === boardOrientation.charAt(0))) {
+                        
+                        // DESKTOP DRAG ONLY
+                        if (!isMobile && viewHistoryIndex === -1 && (isAnalysisMode || piece.color === playerColor.charAt(0))) {
                             img.addEventListener('mousedown', (e) => { if(e.button===0) startDrag(e, square, img); });
-                            img.addEventListener('touchstart', (e) => startDrag(e, square, img), {passive:false});
                         }
+                        // MOBILE: NO DRAG LISTENERS ATTACHED
+                        
                         div.appendChild(img);
                     }
+                    
+                    // Click Listener (Both)
                     div.onclick = () => onSquareClick(square);
-                    div.addEventListener('mousedown', (e) => { if(e.button===2) handleRightClickDown(e, square); });
-                    div.addEventListener('mouseup', (e) => { if(e.button===2) handleRightClickUp(e, square); });
-                    div.addEventListener('mouseenter', (e) => handleRightClickMove(e, square)); 
+                    
+                    // Right Click (Desktop)
+                    if(!isMobile) {
+                        div.addEventListener('mousedown', (e) => { if(e.button===2) handleRightClickDown(e, square); });
+                        div.addEventListener('mouseup', (e) => { if(e.button===2) handleRightClickUp(e, square); });
+                        div.addEventListener('mouseenter', (e) => handleRightClickMove(e, square)); 
+                    }
                     boardEl.appendChild(div);
                 });
             });
             drawArrows(); updateStatusText();
         }
 
-        // --- INTERACTION ---
-        function onSquareClick(square) {
-            if (arrows.length > 0 || circleHighlights.length > 0) clearArrowsAndHighlights();
-            if (premove) { premove = null; renderBoard(); }
-            
-            // Allow clicking in analysis mode to move pieces
-            if (isAnalysisMode || (!isReplayMode && viewHistoryIndex === -1 && !isDragging)) {
-                const piece = chess.get(square);
-                // Allow selecting any piece in analysis mode
-                const myColor = isAnalysisMode ? (piece ? piece.color : null) : boardOrientation.charAt(0);
-
-                if (selectedSquare === null) {
-                    // Logic to select piece
-                    if (piece && (isAnalysisMode || piece.color === myColor)) { 
-                        selectedSquare = square; renderBoard(); 
-                    }
-                } else {
-                    if (selectedSquare === square) { selectedSquare = null; renderBoard(); return; }
-                    // Switch selection if clicking another friendly piece
-                    if (piece && (isAnalysisMode ? piece.color === chess.turn() : piece.color === myColor)) { 
-                        selectedSquare = square; renderBoard(); return; 
-                    }
-                    handleMoveAttempt(selectedSquare, square);
-                }
-            }
-        }
-
-        function startDrag(e, square, el) {
-            // Allow drag in analysis mode too
-            if (!isAnalysisMode && viewHistoryIndex !== -1) return;
-            e.preventDefault(); 
-            isDragging = true; dragStartSquare = square; draggedPiece = el;
-            
-            // Don't call onSquareClick() here to avoid immediate selection toggle
-            // Instead, handle selection in endDrag if it's a click
-            
-            const ghost = document.getElementById('drag-ghost');
-            ghost.style.backgroundImage = el.style.backgroundImage; ghost.style.display = 'block';
-            el.classList.add('dragging'); moveGhost(e);
-            document.addEventListener('mousemove', moveGhost); document.addEventListener('touchmove', moveGhost, {passive:false});
-        }
-        function moveGhost(e) {
-            if(!isDragging) return;
-            const ghost = document.getElementById('drag-ghost');
-            const cX = e.touches ? e.touches[0].clientX : e.clientX;
-            const cY = e.touches ? e.touches[0].clientY : e.clientY;
-            ghost.style.left = cX + 'px'; ghost.style.top = cY + 'px';
-        }
-        function endDrag(e) {
-            if(!isDragging) return;
-            isDragging = false;
-            const ghost = document.getElementById('drag-ghost');
-            ghost.style.display = 'none'; if(draggedPiece) draggedPiece.classList.remove('dragging');
-            document.removeEventListener('mousemove', moveGhost); document.removeEventListener('touchmove', moveGhost);
-            
-            const cX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const cY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            const el = document.elementsFromPoint(cX, cY).find(el => el.classList.contains('square'));
-            
-            if (el) {
-                const target = el.dataset.square;
-                if (target === dragStartSquare) {
-                    // Tap on same square = Click (Select/Deselect)
-                    onSquareClick(target);
-                } else {
-                    // Drag to different square = Move
-                    handleMoveAttempt(dragStartSquare, target);
-                }
-            }
-        }
-
-        function handleMoveAttempt(from, to) {
-            // ANALYSIS MODE MOVE LOGIC
-            if (isAnalysisMode) {
-                const move = chess.move({ from, to, promotion: 'q' });
-                selectedSquare = null;
-                if (move) {
-                    renderBoard();
-                    updateMoveHistoryUI();
-                    playSound('move');
-                    // Trigger Stockfish evaluation for the new position
-                    if(stockfishWorker) {
-                        stockfishWorker.postMessage('position fen ' + chess.fen());
-                        stockfishWorker.postMessage('go depth 15');
-                    }
-                } else {
-                    renderBoard();
-                }
-                return; // Stop here, don't send to firestore
-            }
-
-            // GAMEPLAY MOVE LOGIC
-            const myTurn = chess.turn() === boardOrientation.charAt(0);
-            if (myTurn) {
-                const move = chess.move({ from, to, promotion: 'q' });
-                selectedSquare = null; premove = null;
-                if (move) {
-                    renderBoard(); updateMoveHistoryUI();
-                    if(chess.in_check()) playSound('check'); else if(move.flags.includes('c')) playSound('capture'); else playSound('move');
-                    if (isAI) { checkGameOver(true); setTimeout(makeAIMove, 500); } else { pushMoveToFirestore(); }
-                } else { renderBoard(); }
-            } else {
-                const piece = chess.get(from);
-                if (piece && piece.color === boardOrientation.charAt(0)) {
-                    premove = { from, to }; selectedSquare = null; renderBoard();
-                }
-            }
-        }
-
-        async function pushMoveToFirestore() {
-            if (!currentGameId) return;
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                fen: chess.fen(), pgn: chess.pgn(), lastMove: { t: Date.now() }
-            });
-            checkGameOver(true);
-        }
-
-        function makeAIMove() {
-            if (chess.game_over()) return;
-            if (stockfishWorker) { stockfishWorker.postMessage('position fen ' + chess.fen()); stockfishWorker.postMessage('go depth 6'); window.awaitingAI = true; } 
-            else { const moves = chess.moves(); chess.move(moves[Math.floor(Math.random()*moves.length)]); renderBoard(); updateMoveHistoryUI(); checkGameOver(true); }
-        }
-        function handleStockfishMessage(e) {
-            // Handling AI Move
-            if(window.awaitingAI && e.data.startsWith('bestmove')) {
-                window.awaitingAI = false; 
-                chess.move(e.data.split(' ')[1], {sloppy:true}); 
-                renderBoard(); updateMoveHistoryUI(); 
-                if(chess.in_check()) playSound('check'); else playSound('move'); checkGameOver(true);
-            }
-            // Handling Analysis Eval
-            if(e.data.startsWith('info') && e.data.includes('score cp')) {
-                const m = e.data.match(/score cp (-?\d+)/); 
-                if(m) { 
-                    let cp = parseInt(m[1]); 
-                    if(chess.turn()==='b') cp = -cp; 
-                    // Update UI
-                    const width = Math.max(5, Math.min(95, 50 + (cp/10)));
-                    document.getElementById('eval-fill').style.width = width + '%'; 
-                    document.getElementById('eval-score').innerText = (cp/100).toFixed(2);
-                }
-            }
-            if(isAnalysisMode && e.data.startsWith('bestmove')) {
-                 const best = e.data.split(' ')[1];
-                 document.getElementById('best-move-text').innerText = "Saran Terbaik: " + best;
-            }
-        }
-
-        function checkGameOver(local) { 
-            if(chess.game_over()) { 
-                let res='draw'; let winner='draw'; 
-                if(chess.in_checkmate()) { 
-                    res=boardOrientation===(chess.turn()==='w'?'black':'white')?'win':'loss'; 
-                    winner=res==='win'?localStorage.getItem('chess_username'):document.getElementById('opponent-name').innerText; 
-                } 
-                if(local&&!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner}); 
-                handleGameOver(res); 
-            } 
-        }
-
-        function handleGameOver(res) { 
-            document.getElementById('game-status').innerHTML = res; 
-            playSound('end'); 
-            
-            // Simpan PGN ke Local Storage agar bisa di replay
-            const hist = JSON.parse(localStorage.getItem('chess_history') || '[]');
-            const oppName = document.getElementById('opponent-name').innerText;
-            const last = hist[hist.length-1];
-            // Simple check to avoid duplicates immediately
-            if(!last || (Date.now() - new Date(last.date).getTime() > 5000)) {
-                hist.push({ date: new Date().toISOString(), opponent: oppName, result: res, pgn: chess.pgn() });
-                localStorage.setItem('chess_history', JSON.stringify(hist));
-            }
-
-            // Switch to Analysis Mode UI
-            document.getElementById('play-controls').classList.add('hidden'); 
-            document.getElementById('analysis-controls').classList.remove('hidden'); 
-            
-            isAnalysisMode=true; 
-            if(stockfishWorker) {
-                stockfishWorker.postMessage('position fen '+chess.fen());
-                stockfishWorker.postMessage('go depth 15');
-            }
-        }
-        
-        async function reqTakeback() { 
-            if(isAI) { 
-                chess.undo(); chess.undo(); 
-                renderBoard(); updateMoveHistoryUI(); playSound('notify'); 
-                return; 
-            }
-            if(confirm("Minta mundur?")) sendRequest('takeback'); 
-        }
-        
-        async function respondRequest(acc) {
-            document.getElementById('modal-request').classList.add('hidden');
-            if(acc && gameData.requests.type==='takeback') {
-                const sender = gameData.requests.sender;
-                const requesterColor = (sender === gameData.white.id) ? 'w' : 'b';
-                const temp = new Chess();
-                temp.load_pgn(chess.pgn());
-                temp.undo();
-                if (temp.turn() !== requesterColor) temp.undo();
-                
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({
-                    fen:temp.fen(), pgn:temp.pgn(), requests:{status:'accepted'}
-                });
-            } else if (acc && gameData.requests.type==='draw') {
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner:'draw', requests:{status:'accepted'}});
-            } else {
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{status:'rejected'}});
-            }
-        }
-
-        async function reqDraw() { if(confirm("Ajukan remis?")) sendRequest('draw'); }
-        function confirmResign() { showModalConfirm("Menyerah?", "Yakin?", () => { handleGameOver('loss'); if(!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner: document.getElementById('opponent-name').innerText}); }); }
-        async function sendRequest(t) { await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{type:t, sender:currentUser.uid, status:'pending'}}); alert("Terkirim"); }
-        function checkRequests(req) { if(req?.status==='pending' && req.sender!==currentUser.uid) { document.getElementById('modal-request').classList.remove('hidden'); document.getElementById('req-title').innerText = req.type; playSound('notify'); } else document.getElementById('modal-request').classList.add('hidden'); }
-        
-        function updateStatusText() {
-            const el = document.getElementById('turn-indicator');
-            if(viewHistoryIndex!==-1) { el.innerText="REPLAY"; el.className="text-xs font-bold text-yellow-500"; return; }
-            if(chess.turn()===boardOrientation.charAt(0)) { el.innerText="GILIRAN ANDA"; el.className="text-xs font-bold text-green-400 animate-pulse"; }
-            else { el.innerText="GILIRAN LAWAN"; el.className="text-xs font-bold text-slate-500"; }
-            document.getElementById('game-status').innerText = chess.in_check() ? "SKAK!" : "";
-        }
-        function playSound(t) { 
-            if(soundEnabled && audioFiles[t]) { 
-                // Overlap sound fix: Clone node
-                const snd = new Audio(audioFiles[t]);
-                snd.volume = 1.0;
-                snd.play().catch(()=>{}); 
-            } 
-        }
-        function showModalConfirm(t,m,y) { document.getElementById('modal-title').innerText=t; document.getElementById('modal-message').innerText=m; document.getElementById('modal-yes-btn').onclick=()=>{y();closeModal();}; document.getElementById('modal-confirm').classList.remove('hidden'); }
-        function closeModal() { document.querySelectorAll('.modal-overlay').forEach(e=>e.classList.add('hidden')); }
+        // --- Standard Logic & Utils ---
+        function toggleSound() { soundEnabled = !soundEnabled; document.getElementById('sound-toggle').innerHTML = soundEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute text-red-500"></i>'; }
+        function updateConnectionStatus(c) { document.getElementById('connection-status').innerText = c ? "Online" : "Offline"; }
+        async function handleLogin() { const n = document.getElementById('username-input').value.trim(); if(n) { localStorage.setItem('chess_username', n); document.getElementById('user-display').innerText = n; showScreen('lobby'); listenToLobby(); loadHistory(); } }
+        function logout() { localStorage.removeItem('chess_username'); location.reload(); }
         function showScreen(id) { ['screen-login','screen-lobby','screen-game'].forEach(s=>document.getElementById(s).classList.add('hidden')); document.getElementById('screen-'+id).classList.remove('hidden'); }
         function flipBoard() { boardOrientation=boardOrientation==='white'?'black':'white'; renderBoard(); }
-        
-        function updateMoveHistoryUI() {
-            const tbody = document.getElementById('move-history'); tbody.innerHTML = '';
-            const hist = chess.history();
-            for(let i=0; i<hist.length; i+=2) {
-                tbody.innerHTML += `<tr class="border-b border-slate-800 hover:bg-slate-800"><td class="px-2 py-1 text-slate-500 w-8 border-r border-slate-700">${(i/2)+1}.</td><td class="px-2 py-1 cursor-pointer hover:text-white ${i===viewHistoryIndex?'active-history rounded':''}" onclick="viewHistory(${i})">${hist[i]}</td><td class="px-2 py-1 cursor-pointer hover:text-white ${i+1===viewHistoryIndex?'active-history rounded':''}" onclick="viewHistory(${i+1})">${hist[i+1]||''}</td></tr>`;
-            }
-            if(viewHistoryIndex===-1 && document.getElementById('pgn-container')) document.getElementById('pgn-container').scrollTop = 99999;
+        function switchLobbyTab(tab) {
+            const pa = document.getElementById('lobby-panel-arena'), ph = document.getElementById('lobby-panel-history'), ba = document.getElementById('tab-btn-arena'), bh = document.getElementById('tab-btn-history');
+            if (tab === 'arena') { pa.classList.remove('hidden'); ph.classList.add('hidden'); ba.classList.add('active'); bh.classList.remove('active'); } 
+            else { pa.classList.add('hidden'); ph.classList.remove('hidden'); ph.classList.remove('md:flex'); ph.classList.add('flex'); bh.classList.add('active'); ba.classList.remove('active'); }
         }
+        function startTimer() { if (timerInterval) clearInterval(timerInterval); if (isAnalysisMode || (gameData && gameData.status !== 'playing') || selectedTime === -1) return; timerInterval = setInterval(() => { if (chess.turn() === 'w') { whiteTime--; if (whiteTime <= 0) handleFlagFall('white'); } else { blackTime--; if (blackTime <= 0) handleFlagFall('black'); } updateTimerDisplay(); }, 1000); }
+        function updateTimerDisplay() { if (selectedTime === -1) { const w=document.getElementById('timer-self'), b=document.getElementById('timer-opponent'); if(w)w.innerText="∞"; if(b)b.innerText="∞"; return; } const fmt=t=>{ const m=Math.floor(t/60), s=t%60; return `${m}:${s<10?'0'+s:s}`; }; const elSelf=document.getElementById('timer-self'), elOpp=document.getElementById('timer-opponent'); if(playerColor==='white'){elSelf.innerText=fmt(whiteTime);elOpp.innerText=fmt(blackTime);if(chess.turn()==='w'){elSelf.classList.add('timer-active');elOpp.classList.remove('timer-active');}else{elOpp.classList.add('timer-active');elSelf.classList.remove('timer-active');}}else{elSelf.innerText=fmt(blackTime);elOpp.innerText=fmt(whiteTime);if(chess.turn()==='b'){elSelf.classList.add('timer-active');elOpp.classList.remove('timer-active');}else{elOpp.classList.add('timer-active');elSelf.classList.remove('timer-active');}} }
+        function handleFlagFall(c) { clearInterval(timerInterval); let r = c==='white'?'loss':'win'; handleGameOver(r); if(!isAI&&currentGameId){ const w=c==='white'?(gameData.black?.name||'Black'):(gameData.white?.name||'White'); db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished',winner:w,reason:'timeout'}).catch(()=>{}); } }
+        function startGameLocal(id, o, n) { setupGameCommon(id, o, n); whiteTime = selectedTime===-1?999999:selectedTime*60; blackTime = whiteTime; updateTimerDisplay(); playSound('start'); if(o==='black') setTimeout(makeAIMove, 500); else startTimer(); }
         
-        function exitGame() {
-            if (gameUnsubscribe) gameUnsubscribe();
-            chess.reset();
-            isReplayMode = false;
-            showScreen('lobby');
-            listenToLobby();
-            loadHistory(); 
+        function setupGameCommon(id, o, n) { currentGameId=id; boardOrientation=o; playerColor=o; chess.reset(); isAnalysisMode=false; premoveQueue=[]; viewHistoryIndex=-1; selectedSquare=null; const elO=document.getElementById('opponent-name'), elM=document.getElementById('player-name-display'); if(elO)elO.innerText=n; if(elM)elM.innerText=localStorage.getItem('chess_username'); showScreen('game'); document.getElementById('play-controls').classList.remove('hidden'); document.getElementById('analysis-controls').classList.add('hidden'); renderBoard(); updateMoveHistoryUI(); }
+        function makeAIMove(){ if(chess.game_over())return; document.getElementById('game-status').innerText="AI Berpikir..."; if(stockfishWorker){ stockfishWorker.postMessage('position fen '+chess.fen()); stockfishWorker.postMessage('setoption name Skill Level value '+aiLevel); const d=[1,3,6,10,14][Math.floor(aiLevel/5)]||5; stockfishWorker.postMessage('go depth '+d); window.awaitingAI=true; if(aiTimeout)clearTimeout(aiTimeout); aiTimeout=setTimeout(()=>{if(window.awaitingAI){window.awaitingAI=false;const m=chess.moves();chess.move(m[Math.floor(Math.random()*m.length)]);finalizeAIMove();}},3000); } else { const m=chess.moves(); chess.move(m[Math.floor(Math.random()*m.length)]); finalizeAIMove(); } }
+        function finalizeAIMove() { renderBoard(); updateMoveHistoryUI(); if(chess.in_check())playSound('check'); else playSound('move'); checkGameOver(true); startTimer(); document.getElementById('game-status').innerText=""; setTimeout(processPremoves, 200); }
+        function handleStockfishMessage(e){ if(window.awaitingAI && e.data.startsWith('bestmove')){ window.awaitingAI=false; if(aiTimeout) clearTimeout(aiTimeout); chess.move(e.data.split(' ')[1],{sloppy:true}); finalizeAIMove(); } if(isAnalysisMode && e.data.startsWith('info') && e.data.includes('score cp')){ const m=e.data.match(/score cp (-?\d+)/); if(m){ let cp=parseInt(m[1]); if(chess.turn()==='b')cp=-cp; const f=document.getElementById('eval-fill'), s=document.getElementById('eval-score'); if(f)f.style.width=Math.max(5,Math.min(95,50+(cp/10)))+'%'; if(s)s.innerText=(cp/100).toFixed(2); } } if(isAnalysisMode && e.data.startsWith('bestmove')){ const el=document.getElementById('best-move-text'); if(el)el.innerText="Saran: "+e.data.split(' ')[1]; } }
+        function checkGameOver(l){ if(chess.game_over()){ let r='draw'; if(chess.in_checkmate()) r=chess.turn()===playerColor.charAt(0)?'loss':'win'; handleGameOver(r); if(l&&!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished',winner:r==='win'?localStorage.getItem('chess_username'):document.getElementById('opponent-name').innerText}); } }
+        function handleGameOver(res){ clearInterval(timerInterval); document.getElementById('go-title').innerText=res==='win'?"KEMENANGAN!":(res==='loss'?"KEKALAHAN":"REMIS"); document.getElementById('go-message').innerText=res==='win'?"Musuh tumbang.":"Istana runtuh."; document.getElementById('modal-gameover').classList.remove('hidden'); playSound('end'); const h=JSON.parse(localStorage.getItem('chess_history')||'[]'); const o=document.getElementById('opponent-name').innerText; if(!h.length || (Date.now()-new Date(h[h.length-1].date).getTime()>5000)) { h.push({date:new Date().toISOString(),opponent:o,result:res,pgn:chess.pgn()}); localStorage.setItem('chess_history',JSON.stringify(h)); } }
+        function startAnalysisFromModal(){ closeModal('modal-gameover'); document.getElementById('play-controls').classList.add('hidden'); document.getElementById('analysis-controls').classList.remove('hidden'); isAnalysisMode=true; if(stockfishWorker) stockfishWorker.postMessage('position fen '+chess.fen()); }
+        function exitGame(){ if(gameUnsubscribe) gameUnsubscribe(); clearInterval(timerInterval); chess.reset(); isReplayMode=false; showScreen('lobby'); switchLobbyTab('arena'); listenToLobby(); loadHistory(); }
+        function updateMoveHistoryUI(){ const t=document.getElementById('move-history'); if(!t)return; t.innerHTML=''; const h=chess.history(); for(let i=0;i<h.length;i+=2) t.innerHTML+=`<tr class="border-b border-[#3e2723] hover:bg-[#2b1d0e]"><td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723]">${(i/2)+1}.</td><td class="px-3 py-2 cursor-pointer hover:text-white">${h[i]}</td><td class="px-3 py-2 cursor-pointer hover:text-white">${h[i+1]||''}</td></tr>`; if(viewHistoryIndex===-1) document.getElementById('pgn-container').scrollTop=99999; }
+        function playSound(t){ if(soundEnabled && audioFiles[t]){ const s=new Audio(audioFiles[t]); s.volume=1; s.play().catch(()=>{}); } }
+        async function pushMoveToFirestore(){ if(currentGameId) await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({fen:chess.fen(),pgn:chess.pgn(),lastMove:{t:Date.now()},whiteTime:whiteTime,blackTime:blackTime}); checkGameOver(true); }
+        async function reqTakeback(){ if(isAI){ chess.undo(); chess.undo(); renderBoard(); updateMoveHistoryUI(); playSound('notify'); return; } showModalConfirm("MUNDUR?", "Minta mundur ke lawan?", async ()=>{ await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{type:'takeback',sender:currentUser.uid,status:'pending'}}); }); }
+        async function reqDraw(){ showModalConfirm("REMIS?", "Ajukan remis?", async ()=>{ await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{type:'draw',sender:currentUser.uid,status:'pending'}}); }); }
+        function confirmResign(){ if(document.getElementById('game-status').innerText==="Menunggu..."){ db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).delete(); exitGame(); return; } showModalConfirm("MENYERAH?","YAKIN?",()=>{ handleGameOver('loss'); if(!isAI) db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner:document.getElementById('opponent-name').innerText}); }); }
+        async function respondRequest(acc){ document.getElementById('modal-request').classList.add('hidden'); if(acc){ if(gameData.requests.type==='takeback'){ const t=new Chess(); t.load_pgn(chess.pgn()); t.undo(); if(t.turn()!==(gameData.requests.sender===gameData.white.id?'w':'b')) t.undo(); await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({fen:t.fen(),pgn:t.pgn(),requests:{status:'accepted'}}); } else if(gameData.requests.type==='draw'){ await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({status:'finished', winner:'draw', requests:{status:'accepted'}}); } } else { await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(currentGameId).update({requests:{status:'rejected'}}); } }
+        function handleRightClickDown(e,s){if(!s)return;isRightClicking=true;rightClickStart=s;rightClickCurrent=s;}
+        function handleRightClickMove(e,s){if(isRightClicking&&s&&rightClickCurrent!==s){rightClickCurrent=s;drawArrows();}}
+        function handleRightClickUp(e,s){ if(!isRightClicking)return; isRightClicking=false; if(rightClickStart===s){const i=circleHighlights.indexOf(s);if(i>-1)circleHighlights.splice(i,1);else circleHighlights.push(s);}else if(s){const i=arrows.findIndex(a=>a.from===rightClickStart&&a.to===s);if(i>-1)arrows.splice(i,1);else arrows.push({from:rightClickStart,to:s});} rightClickStart=null;rightClickCurrent=null;renderBoard();}
+        function clearArrowsAndHighlights(){arrows=[];circleHighlights=[];renderBoard();}
+        function drawArrows(){ const svg=document.getElementById('arrow-layer');if(!svg)return;svg.innerHTML=''; const getC=s=>{const c=s.charCodeAt(0)-97,r=8-parseInt(s[1]);return{x:((boardOrientation==='white'?c:7-c)*12.5)+6.25,y:((boardOrientation==='white'?r:7-r)*12.5)+6.25};}; arrows.forEach(a=>renderArrowSvg(svg,getC(a.from),getC(a.to),'#10b981')); if(isRightClicking&&rightClickStart&&rightClickCurrent&&rightClickStart!==rightClickCurrent)renderArrowSvg(svg,getC(rightClickStart),getC(rightClickCurrent),'#fbbf24',0.6); }
+        function renderArrowSvg(svg,s,e,c,o=0.9){ const ang=Math.atan2(e.y-s.y,e.x-s.x), end={x:e.x-3*Math.cos(ang),y:e.y-3*Math.sin(ang)}, id=`a-${Math.random().toString(36).substr(2)}`; const d=document.createElementNS("http://www.w3.org/2000/svg","defs"), m=document.createElementNS("http://www.w3.org/2000/svg","marker"); m.setAttribute("id",id);m.setAttribute("markerWidth",4);m.setAttribute("markerHeight",4);m.setAttribute("refX",2);m.setAttribute("refY",2);m.setAttribute("orient","auto"); const p=document.createElementNS("http://www.w3.org/2000/svg","path"); p.setAttribute("d","M0,0 L4,2 L0,4 Z");p.setAttribute("fill",c);p.setAttribute("fill-opacity",o); m.appendChild(p);d.appendChild(m);svg.appendChild(d); const l=document.createElementNS("http://www.w3.org/2000/svg","line"); l.setAttribute("x1",s.x);l.setAttribute("y1",s.y);l.setAttribute("x2",end.x);l.setAttribute("y2",end.y); l.setAttribute("stroke",c);l.setAttribute("stroke-width",2.5);l.setAttribute("stroke-opacity",o);l.setAttribute("marker-end",`url(#${id})`); svg.appendChild(l); }
+        function updateStatusText() { const el = document.getElementById('turn-indicator'); if(!el) return; if(viewHistoryIndex!==-1) { el.innerText="REPLAY"; el.className="text-xs font-bold text-yellow-500"; return; } if(chess.turn()===boardOrientation.charAt(0)) { el.innerText="GILIRAN ANDA"; el.className="text-xs font-bold text-green-400 animate-pulse"; } else { el.innerText="GILIRAN LAWAN"; el.className="text-xs font-bold text-slate-500"; } const statusEl = document.getElementById('game-status'); if(statusEl) statusEl.innerText = chess.in_check() ? "SKAK!" : ""; }
+        function openCreateGameModal(t) { windowPendingGameType=t; document.getElementById('modal-create').classList.remove('hidden'); document.getElementById('ai-settings').classList.toggle('hidden', t!=='ai'); selectTime(10); selectColor('random'); }
+        function selectColor(c) { selectedColor=c; ['white','random','black'].forEach(x=>document.getElementById(`btn-color-${x}`).classList.toggle('selected', x===c)); }
+        function selectTime(t) { selectedTime=t; [1,3,5,10,30,-1].forEach(x=>document.getElementById(`btn-time-${x}`).classList.toggle('selected', x===t)); }
+        function confirmCreateGame() { if(windowPendingGameType==='ai') aiLevel=document.getElementById('ai-elo').value; document.getElementById('modal-create').classList.add('hidden'); createGameExec(windowPendingGameType); }
+        
+        // FIXED MODAL CANCEL
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function showModalConfirm(t,m,y) { 
+            document.getElementById('modal-title').innerText=t; 
+            document.getElementById('modal-message').innerText=m; 
+            document.getElementById('modal-yes-btn').onclick=()=>{y();closeModal('modal-confirm');}; 
+            document.getElementById('modal-no-btn').onclick=()=>{closeModal('modal-confirm');};
+            document.getElementById('modal-confirm').classList.remove('hidden'); 
         }
+        function showRequestModal(t) { document.getElementById('req-title').innerText = t==='takeback'?'Minta Mundur':'Tawaran Remis'; document.getElementById('req-message').innerText = "Lawan meminta persetujuan."; document.getElementById('modal-request').classList.remove('hidden'); }
+        async function createGameExec(type) { if(!currentUser) return alert("Koneksi terputus!"); try { const gameId = currentUser.uid + '_' + Date.now(); const myName = localStorage.getItem('chess_username'); let white = null, black = null, orient = 'white'; if (selectedColor === 'random') selectedColor = Math.random() < 0.5 ? 'white' : 'black'; if (selectedColor === 'white') { white = { name: myName, id: currentUser.uid }; orient = 'white'; } else { black = { name: myName, id: currentUser.uid }; orient = 'black'; } if (type === 'ai') { isAI = true; const aiName = `Stockfish (Lv.${aiLevel})`; if(orient==='white') black = {name: aiName, id:'ai'}; else white = {name: aiName, id:'ai'}; startGameLocal(gameId, orient, aiName); } else { isAI = false; await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(gameId).set({ white, black, fen: 'start', pgn: '', status: 'waiting', timeControl: selectedTime, createdAt: firebase.firestore.FieldValue.serverTimestamp(), requests: {} }); startGameFirestore(gameId, orient); } } catch(e) { alert(e.message); } }
+        function listenToLobby() { db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').where('status', '==', 'waiting').limit(50).onSnapshot((snap) => { const listEl = document.getElementById('room-list'); if(!listEl) return; listEl.innerHTML = ''; if (snap.empty) { listEl.innerHTML = '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada tantangan.</div>'; return; } let games = []; const now = Date.now(); snap.forEach(doc => { const d = doc.data(); if (!d.createdAt) return; if ((now - d.createdAt.toMillis() > 3600000) || (d.white && d.black)) { db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(doc.id).delete().catch(()=>{}); return; } games.push({id: doc.id, ...d}); }); games.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); games.forEach(g => { if (g.white?.id === currentUser?.uid || g.black?.id === currentUser?.uid) return; const hostName = g.white ? g.white.name : (g.black ? g.black.name : "Unknown"); const time = g.timeControl === -1 ? "∞" : g.timeControl; const div = document.createElement('div'); div.className = "bg-[#2b1d0e] p-3 rounded flex justify-between items-center border border-[#5d4037] mb-2 hover:border-yellow-600 transition"; div.innerHTML = `<div class="flex items-center gap-3"><div class="w-8 h-8 rounded bg-[#1a0f00] flex items-center justify-center border border-[#5d4037]"><i class="fas ${g.white ? 'fa-chess-king text-[#e6d2b5]' : 'fa-chess-king text-black'}"></i></div><div><span class="block text-sm font-bold text-[#c5a059] font-medieval">${hostName}</span><span class="text-[10px] text-stone-500">${time} Menit</span></div></div><button onclick="joinGame('${g.id}', this)" class="medieval-btn px-4 py-1.5 rounded text-xs shadow-lg"><i class="fas fa-swords mr-1"></i> LAWAN</button>`; listEl.appendChild(div); }); }); }
+        function loadHistory() { const histList = document.getElementById('history-list'); if(!histList) return; const history = JSON.parse(localStorage.getItem('chess_history') || '[]'); histList.innerHTML = ''; if (history.length === 0) { histList.innerHTML = '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada jejak pertempuran.</div>'; return; } history.reverse().slice(0, 10).forEach(game => { const el = document.createElement('div'); const color = game.result === 'win' ? 'text-green-500' : (game.result === 'loss' ? 'text-red-500' : 'text-yellow-500'); el.className = "bg-[#2b1d0e] p-3 rounded text-xs mb-2 border border-[#5d4037] flex justify-between items-center cursor-pointer hover:border-yellow-600 transition"; el.innerHTML = `<div class="flex flex-col"><span class="text-[#c5a059] font-bold">vs ${game.opponent}</span><span class="text-[10px] text-stone-500">${new Date(game.date).toLocaleDateString()}</span></div><span class="${color} font-bold uppercase border border-stone-600 px-2 py-1 rounded bg-black/30">${game.result}</span>`; el.onclick = () => loadReplayGame(game); histList.appendChild(el); }); }
+        function loadReplayGame(game) { currentGameId = null; isReplayMode = true; isAnalysisMode = true; boardOrientation = 'white'; if (!game.pgn) return alert("Arsip rusak."); chess.load_pgn(game.pgn); viewHistoryIndex = -1; document.getElementById('opponent-name').innerText = game.opponent; showScreen('game'); document.getElementById('play-controls').classList.add('hidden'); document.getElementById('analysis-controls').classList.remove('hidden'); renderBoard(); updateMoveHistoryUI(); if(stockfishWorker) { stockfishWorker.postMessage('position fen '+chess.fen()); stockfishWorker.postMessage('go depth 15'); } }
+        async function joinGame(id) { isAI = false; try { await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('games').doc(id).update({ black: { name: localStorage.getItem('chess_username'), id: currentUser.uid }, status: 'playing' }); startGameFirestore(id, 'black'); } catch(e) { alert("Penuh/Hilang"); } }
 
         initApp();
     </script>
