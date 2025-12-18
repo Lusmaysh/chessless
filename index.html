@@ -271,7 +271,10 @@
       }
     </style>
   </head>
-  <body class="h-screen w-screen flex flex-col" oncontextmenu="return false;">
+  <body
+    class="fixed inset-0 w-full h-full flex flex-col bg-[#1a120b]"
+    oncontextmenu="return false;"
+  >
     <div id="drag-ghost"></div>
 
     <!-- MODALS -->
@@ -749,7 +752,9 @@
     </main>
 
     <script>
-      // --- KONFIGURASI FIREBASE ---
+      // ==========================================
+      // 1. KONFIGURASI & VARIABEL (JANGAN DIUBAH)
+      // ==========================================
       const firebaseConfig = {
         apiKey: "AIzaSyDmer19KTaijOz3bTdknEEs5dqwKNt6HQg",
         authDomain: "masjid-pekalongan.firebaseapp.com",
@@ -766,7 +771,7 @@
         db = firebase.firestore(),
         appId = "chess-v3-final";
 
-      // --- VARIABEL GLOBAL ---
+      // Global Vars
       let currentUser = null,
         currentGameId = null,
         gameData = null;
@@ -775,27 +780,25 @@
         playerColor = "white",
         stockfishWorker = null,
         gameUnsubscribe = null;
-      let soundEnabled = true,
-        selectedSquare = null,
-        premoveQueue = [];
-
-      // Variabel Drag & Drop
-      let isDragging = false,
-        dragStartSquare = null,
-        draggedPieceElement = null;
-
-      // Variabel Timer
+      let premoveQueue = [],
+        soundEnabled = true,
+        selectedSquare = null;
       let whiteTime = 600,
         blackTime = 600,
         timerInterval = null,
         selectedTime = 10,
         lastTimestamp = null;
-
-      // Variabel Lain
       let arrows = [],
         circleHighlights = [],
         isRightClicking = false,
-        rightClickStart = null;
+        rightClickStart = null,
+        rightClickCurrent = null;
+      let isDragging = false,
+        dragStartSquare = null,
+        draggedPieceElement = null;
+      let startX = 0,
+        startY = 0,
+        isClickCandidate = false;
       let isAI = false,
         isAnalysisMode = false,
         viewHistoryIndex = -1,
@@ -808,7 +811,6 @@
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
           navigator.userAgent
         );
-
       const audioFiles = {
         move: "https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/move-self.mp3",
         capture:
@@ -819,492 +821,166 @@
           "https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/game-start.mp3",
         end: "https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/game-end.mp3",
       };
+
+      // ==========================================
+      // 2. FUNGSI PENDUKUNG (WAJIB ADA DISINI)
+      // ==========================================
+
+      // Fungsi UI Dasar (Mengatasi ReferenceError)
+      function updateConnectionStatus(c) {
+        const el = document.getElementById("connection-status");
+        if (el) el.innerText = c ? "Online" : "Offline";
+      }
+
+      function toggleSound() {
+        soundEnabled = !soundEnabled;
+        document.getElementById("sound-toggle").innerHTML = soundEnabled
+          ? '<i class="fas fa-volume-up"></i>'
+          : '<i class="fas fa-volume-mute text-red-500"></i>';
+      }
+
       function getPieceUrl(c, t) {
         return `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${c}${t}.png`;
       }
 
-      // --- INISIALISASI ---
-      async function initApp() {
-        try {
-          const b = await fetch(
-            "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js"
-          ).then((r) => r.blob());
-          stockfishWorker = new Worker(URL.createObjectURL(b));
-          stockfishWorker.onmessage = handleStockfishMessage;
-        } catch (e) {
-          console.warn("Stockfish load failed");
+      function playSound(t) {
+        if (soundEnabled && audioFiles[t]) {
+          const s = new Audio(audioFiles[t]);
+          s.volume = 1;
+          s.play().catch(() => {});
         }
-
-        const s = localStorage.getItem("chess_username");
-        if (s) document.getElementById("username-input").value = s;
-
-        auth.onAuthStateChanged((u) => {
-          if (u) {
-            currentUser = u;
-            updateConnectionStatus(true);
-            if (
-              s &&
-              !document
-                .getElementById("screen-login")
-                .classList.contains("hidden")
-            )
-              handleLogin();
-          } else {
-            updateConnectionStatus(false);
-            auth.signInAnonymously();
-          }
-        });
-
-        // Global Input Listeners (Untuk melepas Drag)
-        document.addEventListener("mouseup", handleGlobalEnd);
-        document.addEventListener("touchend", handleGlobalEnd);
-        document.addEventListener("mousemove", handleGlobalMove);
-        document.addEventListener("touchmove", handleGlobalMove, {
-          passive: false,
-        });
-        document.addEventListener("contextmenu", (e) => e.preventDefault());
       }
 
-      // --- INPUT SYSTEM (REVISI FINAL: MOBILE STABIL) ---
+      function closeModal(id) {
+        document.getElementById(id).classList.add("hidden");
+      }
 
-      // Variabel Input
-      let startX = 0,
-        startY = 0;
-      let isClickCandidate = false; // Penanda apakah ini mungkin klik
+      function showModalConfirm(t, m, y) {
+        document.getElementById("modal-title").innerText = t;
+        document.getElementById("modal-message").innerText = m;
+        document.getElementById("modal-yes-btn").onclick = () => {
+          y();
+          closeModal("modal-confirm");
+        };
+        document.getElementById("modal-no-btn").onclick = () => {
+          closeModal("modal-confirm");
+        };
+        document.getElementById("modal-confirm").classList.remove("hidden");
+      }
 
-      // 1. Start Input (Dipasang di elemen bidak)
-      function attachInputListeners(element, square) {
-        // Mouse Down
-        element.addEventListener("mousedown", (e) => {
-          if (e.button !== 0) return;
-          e.preventDefault(); // Mencegah seleksi teks
-          initInput(e.clientX, e.clientY, square, element);
-        });
+      // Fungsi Login & Auth (Mengatasi ReferenceError handleLogin)
+      async function handleLogin() {
+        const n = document.getElementById("username-input").value.trim();
+        if (n) {
+          localStorage.setItem("chess_username", n);
+          document.getElementById("user-display").innerText = n;
+          showScreen("lobby");
+          listenToLobby();
+          loadHistory();
+        }
+      }
 
-        // Touch Start (Pasif false agar bisa preventDefault scroling)
-        element.addEventListener(
-          "touchstart",
-          (e) => {
-            // JANGAN panggil e.preventDefault() di sini agar event click native mati
-            // Kita handle "Click" manual nanti di Touchend
-            const touch = e.touches[0];
-            initInput(touch.clientX, touch.clientY, square, element);
-          },
-          { passive: false }
+      function logout() {
+        localStorage.removeItem("chess_username");
+        location.reload();
+      }
+
+      function showScreen(id) {
+        ["screen-login", "screen-lobby", "screen-game"].forEach((s) =>
+          document.getElementById(s).classList.add("hidden")
         );
+        document.getElementById("screen-" + id).classList.remove("hidden");
       }
 
-      function initInput(x, y, square, el) {
-        if (!isAnalysisMode && viewHistoryIndex !== -1) return;
-
-        // Reset Status
-        isDragging = false;
-        isClickCandidate = true; // Kita asumsikan ini klik dulu
-        startX = x;
-        startY = y;
-
-        dragStartSquare = square;
-        draggedPieceElement = el;
-
-        // Siapkan Ghost tapi sembunyikan
-        const ghost = document.getElementById("drag-ghost");
-        if (ghost) {
-          ghost.style.backgroundImage = el.style.backgroundImage;
-          ghost.style.left = x + "px";
-          ghost.style.top = y + "px";
-          ghost.style.display = "none";
+      // Fungsi Handler Stockfish (Mengatasi ReferenceError handleStockfishMessage)
+      function handleStockfishMessage(e) {
+        if (window.awaitingAI && e.data.startsWith("bestmove")) {
+          window.awaitingAI = false;
+          if (aiTimeout) clearTimeout(aiTimeout);
+          chess.move(e.data.split(" ")[1], { sloppy: true });
+          finalizeAIMove();
         }
-      }
-
-      // 2. Move Input (Global)
-      function handleGlobalMove(e) {
-        // Jika tidak ada potensi interaksi, abaikan
-        if (!isClickCandidate && !isDragging) return;
-
-        let clientX, clientY;
-        if (e.type === "touchmove") {
-          clientX = e.touches[0].clientX;
-          clientY = e.touches[0].clientY;
-        } else {
-          clientX = e.clientX;
-          clientY = e.clientY;
-        }
-
-        // Hitung jarak gerak dari titik awal
-        const diffX = Math.abs(clientX - startX);
-        const diffY = Math.abs(clientY - startY);
-
-        // Ambang batas toleransi (5px). Jika gerak < 5px, masih dianggap "tahan jari diam"
-        if (!isDragging && (diffX > 5 || diffY > 5)) {
-          isDragging = true; // Resmi jadi DRAG
-          isClickCandidate = false; // Batal jadi KLIK
-
-          // Tampilkan Ghost
-          const ghost = document.getElementById("drag-ghost");
-          if (ghost) ghost.style.display = "block";
-        }
-
-        // Logika saat sedang Dragging
-        if (isDragging) {
-          if (e.cancelable && e.type === "touchmove") e.preventDefault(); // Matikan Scroll layar HP
-
-          const ghost = document.getElementById("drag-ghost");
-          if (ghost) {
-            ghost.style.left = clientX + "px";
-            ghost.style.top = clientY + "px";
+        if (
+          isAnalysisMode &&
+          e.data.startsWith("info") &&
+          e.data.includes("score cp")
+        ) {
+          const m = e.data.match(/score cp (-?\d+)/);
+          if (m) {
+            let cp = parseInt(m[1]);
+            if (chess.turn() === "b") cp = -cp;
+            const f = document.getElementById("eval-fill"),
+              s = document.getElementById("eval-score");
+            if (f)
+              f.style.width = Math.max(5, Math.min(95, 50 + cp / 10)) + "%";
+            if (s) s.innerText = (cp / 100).toFixed(2);
           }
+        }
+        if (isAnalysisMode && e.data.startsWith("bestmove")) {
+          const el = document.getElementById("best-move-text");
+          if (el) el.innerText = "Saran: " + e.data.split(" ")[1];
         }
       }
 
-      // 3. End Input (Global)
-      function handleGlobalEnd(e) {
-        // Bersihkan UI Ghost
-        const ghost = document.getElementById("drag-ghost");
-        if (ghost) ghost.style.display = "none";
-
-        // SKENARIO 1: KLIK MURNI (Jari diangkat tanpa geser jauh)
-        if (isClickCandidate && !isDragging) {
-          isClickCandidate = false;
-          // Panggil logika klik manual
-          if (dragStartSquare) {
-            // Mainkan suara tap kecil opsional atau feedback visual
-            onSquareClick(dragStartSquare);
-          }
-          dragStartSquare = null;
-          return;
-        }
-
-        // SKENARIO 2: SELESAI DRAG (Drop)
-        if (isDragging) {
-          isDragging = false;
-          isClickCandidate = false;
-
-          // Cari koordinat drop
-          let clientX, clientY;
-          if (e.type === "touchend") {
-            clientX = e.changedTouches[0].clientX;
-            clientY = e.changedTouches[0].clientY;
-          } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-          }
-
-          // Cari elemen kotak di bawah jari
-          const elements = document.elementsFromPoint(clientX, clientY);
-          const squareEl = elements.find((el) =>
-            el.classList.contains("square")
-          );
-
-          if (squareEl) {
-            const targetSquare = squareEl.dataset.square;
-            if (targetSquare && targetSquare !== dragStartSquare) {
-              handleMoveAttempt(dragStartSquare, targetSquare);
-            } else {
-              // Drop di kotak yang sama -> Anggap sebagai klik kedua (Deselect/Select)
-              onSquareClick(targetSquare);
-            }
-          } else {
-            // Drop di luar papan -> Deselect
-            selectedSquare = null;
-            renderBoard();
-          }
-        }
-
-        // Reset Global
-        dragStartSquare = null;
-        draggedPieceElement = null;
-      }
-
-      // 4. Logika Interaksi Kotak (Logika Catur) - SAMA SEPERTI SEBELUMNYA
-      function onSquareClick(square) {
-        handleSquareInteraction(square);
-      }
-
-      function handleSquareInteraction(square, isStartPhase = false) {
-        // Bersihkan highlight lama
-        if (arrows.length > 0 || circleHighlights.length > 0)
-          clearArrowsAndHighlights();
-
-        const piece = chess.get(square);
-        const myColor = playerColor.charAt(0);
-        const isMyTurn = chess.turn() === myColor;
-
-        // --- LOGIKA PREMOVE INPUT ---
-        if (!isMyTurn && !isAnalysisMode) {
-          // Jika sedang giliran lawan
-          if (selectedSquare && selectedSquare !== square) {
-            // Klik kedua (Tujuan Premove)
-            handleMoveAttempt(selectedSquare, square);
-            return;
-          }
-          // Klik pertama (Pilih bidak sendiri untuk dipremove)
-          if (piece && piece.color === myColor) {
-            selectedSquare = square;
-            renderBoard();
-          } else if (!isStartPhase) {
-            // Klik kosong/musuh = Batalkan Premove
-            premoveQueue = [];
-            selectedSquare = null;
-            renderBoard();
-          }
-          return;
-        }
-
-        // --- LOGIKA NORMAL INPUT ---
-        if (selectedSquare && selectedSquare !== square) {
-          // Coba gerak ke tujuan
-          const pieceAtTarget = chess.get(square);
-          // Jika klik bidak sendiri (Ganti seleksi), kecuali mode capture
-          if (
-            pieceAtTarget &&
-            pieceAtTarget.color === myColor &&
-            !isAnalysisMode
-          ) {
-            selectedSquare = square;
-            renderBoard();
-          } else {
-            handleMoveAttempt(selectedSquare, square);
-          }
-        } else {
-          // Seleksi awal
-          if (piece && (piece.color === myColor || isAnalysisMode)) {
-            selectedSquare = square;
-            renderBoard();
-          } else if (!isStartPhase) {
-            selectedSquare = null;
-            renderBoard();
-          }
-        }
-      }
-
-      // --- LOGIKA PERGERAKAN & PREMOVE ---
-      function handleMoveAttempt(from, to) {
-        if (isAnalysisMode) {
-          if (chess.move({ from, to, promotion: "q" })) {
-            renderBoard();
-            updateMoveHistoryUI();
-            playSound("move");
-            if (stockfishWorker)
-              stockfishWorker.postMessage("position fen " + chess.fen());
-          }
-          return;
-        }
-
-        const myColor = playerColor.charAt(0);
-
-        // KONDISI 1: GILIRAN SAYA (Move Langsung)
-        if (chess.turn() === myColor) {
-          const move = chess.move({ from, to, promotion: "q" });
-          selectedSquare = null;
-
-          if (move) {
-            clearArrowsAndHighlights();
-            renderBoard();
-            updateMoveHistoryUI();
-            if (chess.in_check()) playSound("check");
-            else if (move.flags.includes("c")) playSound("capture");
-            else playSound("move");
-
-            // --- FIX TIMER PENTING ---
-            // Jangan reset waktu! Kirim whiteTime/blackTime saat ini ke DB
-            if (isAI) {
-              checkGameOver(true);
-              setTimeout(makeAIMove, 500);
-            } else {
-              pushMoveToFirestore();
-            }
-          } else {
-            // Illegal move
-            renderBoard();
-          }
-        }
-        // KONDISI 2: GILIRAN LAWAN (Premove)
-        else {
-          // Validasi Multi-Premove (Virtual Board)
-          const tempChess = new Chess(chess.fen());
-
-          // Replay antrian premove yang sudah ada
-          for (let pm of premoveQueue) {
-            forceTurn(tempChess, myColor);
-            tempChess.move({ from: pm.from, to: pm.to, promotion: "q" });
-          }
-
-          // Cek langkah baru
-          forceTurn(tempChess, myColor);
-          const valid = tempChess.move({ from, to, promotion: "q" });
-
-          if (valid) {
-            premoveQueue.push({ from, to });
-            selectedSquare = null;
-            renderBoard();
-          } else {
-            selectedSquare = null;
-            renderBoard();
-          }
-        }
-      }
-
-      function forceTurn(chessInstance, color) {
-        const tokens = chessInstance.fen().split(" ");
-        tokens[1] = color;
-        chessInstance.load(tokens.join(" "));
-      }
-
-      function processPremoves() {
-        if (premoveQueue.length === 0 || chess.game_over()) return;
-        if (chess.turn() !== playerColor.charAt(0)) return;
-
-        const moveData = premoveQueue[0];
-        const move = chess.move({
-          from: moveData.from,
-          to: moveData.to,
-          promotion: "q",
-        });
-
-        if (move) {
-          premoveQueue.shift(); // Hapus dari antrian
-          renderBoard();
-          updateMoveHistoryUI();
-          playSound("move");
-
-          if (!isAI) {
-            pushMoveToFirestore();
-          } else {
-            setTimeout(makeAIMove, 500);
-          }
-        } else {
-          premoveQueue = []; // Batal jika illegal
-          playSound("check");
-          renderBoard();
-        }
-      }
-
-      // --- TIMER & DATABASE ---
+      // ==========================================
+      // 3. CORE LOGIC (TIMER, MOVE, PREMOVE)
+      // ==========================================
 
       function startTimer() {
         if (timerInterval) clearInterval(timerInterval);
+        if (isAnalysisMode || selectedTime === -1) return;
+        if (!isAI && (!gameData || gameData.status !== "playing")) return;
 
-        // Jangan jalan jika analisis, atau online tapi status bukan playing
-        if (
-          isAnalysisMode ||
-          (!isAI && gameData && gameData.status !== "playing") ||
-          selectedTime === -1
-        )
-          return;
-
-        // Set anchor lokal untuk AI
         lastTimestamp = Date.now();
 
-        timerInterval = setInterval(
-          () => {
-            // --- JALUR 1: MODE AI (LOKAL) ---
-            if (isAI) {
-              const now = Date.now();
-              const delta = Math.floor((now - lastTimestamp) / 1000);
-              if (delta >= 1) {
-                if (chess.turn() === "w") whiteTime -= 1;
-                else blackTime -= 1;
-                lastTimestamp = now;
-                updateTimerDisplay();
-              }
-            }
-            // --- JALUR 2: MODE ONLINE (DATABASE SYNC) ---
-            else {
-              // Pastikan data penting ada
-              if (!gameData || !gameData.lastMove) return;
-
-              // 1. Ambil Waktu 'Beku' dari Database
-              // Jika undefined (awal game), gunakan batas waktu room
-              const limit = (gameData.timeControl || 10) * 60;
-              const dbWhiteTime =
-                gameData.whiteTime !== undefined ? gameData.whiteTime : limit;
-              const dbBlackTime =
-                gameData.blackTime !== undefined ? gameData.blackTime : limit;
-
-              // 2. Hitung berapa lama waktu berlalu sejak langkah TERAKHIR di DB
-              const now = Date.now();
-              const elapsedSeconds = Math.floor(
-                (now - gameData.lastMove.t) / 1000
-              );
-
-              // 3. TERAPKAN LOGIKA GILIRAN (CRITICAL FIX)
-              if (chess.turn() === "w") {
-                // Putih sedang mikir: Waktu DB dikurangi waktu berjalan
-                whiteTime = dbWhiteTime - elapsedSeconds;
-                // Hitam menunggu: Waktu Hitam DIAM sesuai data DB terakhir
-                blackTime = dbBlackTime;
-              } else {
-                // Hitam sedang mikir: Waktu DB dikurangi waktu berjalan
-                blackTime = dbBlackTime - elapsedSeconds;
-                // Putih menunggu: Waktu Putih DIAM sesuai data DB terakhir
-                whiteTime = dbWhiteTime;
-              }
-
-              // Update UI
+        timerInterval = setInterval(() => {
+          // ONLINE: Tunggu langkah pertama
+          if (!isAI && (!gameData || !gameData.lastMove)) {
+            if (gameData && gameData.whiteTime) {
+              whiteTime = gameData.whiteTime;
+              blackTime = gameData.blackTime;
               updateTimerDisplay();
             }
-
-            // Cek Game Over (Berlaku untuk keduanya)
-            // Gunakan buffer -1 agar tidak kalah prematur karena lag koneksi
-            if (whiteTime <= -1) handleFlagFall("white");
-            if (blackTime <= -1) handleFlagFall("black");
-          },
-          isAI ? 1000 : 100
-        ); // Online update sangat cepat (100ms) agar timer terlihat smooth
-      }
-
-      // GANTI FUNGSI INI
-      async function handleFlagFall(colorWhoRanOutOfTime) {
-        clearInterval(timerInterval);
-
-        // Tentukan hasil dari sudut pandang SAYA
-        // Jika yang habis waktu adalah warna SAYA, maka SAYA kalah ('loss')
-        // Jika yang habis waktu adalah warna LAWAN, maka SAYA menang ('win')
-        const myColor = playerColor.charAt(0) === "w" ? "white" : "black";
-        const result = colorWhoRanOutOfTime === myColor ? "loss" : "win";
-
-        handleGameOver(result);
-
-        // Update ke Database agar lawan juga tahu game sudah selesai
-        if (!isAI && currentGameId) {
-          // Tentukan siapa pemenangnya (nama)
-          const winnerColor =
-            colorWhoRanOutOfTime === "white" ? "black" : "white";
-          // Ambil nama dari data game yang ada
-          const winnerName =
-            winnerColor === "white"
-              ? gameData.white
-                ? gameData.white.name
-                : "White"
-              : gameData.black
-              ? gameData.black.name
-              : "Black";
-
-          try {
-            await db
-              .collection("artifacts")
-              .doc(appId)
-              .collection("public")
-              .doc("data")
-              .collection("games")
-              .doc(currentGameId)
-              .update({
-                status: "finished",
-                winner: winnerName,
-                reason: "timeout", // Tambahkan alasan agar jelas
-              });
-          } catch (e) {
-            console.error("Gagal update game over:", e);
+            return;
           }
-        }
+
+          const now = Date.now();
+          const delta = Math.floor((now - lastTimestamp) / 1000);
+
+          if (delta >= 1) {
+            if (chess.turn() === "w") whiteTime -= 1;
+            else blackTime -= 1;
+            lastTimestamp = now;
+
+            // Sync Guest agar tidak drift
+            if (!isAI && gameData) {
+              const myColor = playerColor.charAt(0);
+              if (chess.turn() !== myColor) {
+                if (myColor === "w") whiteTime = gameData.whiteTime;
+                else blackTime = gameData.blackTime;
+              }
+            }
+            updateTimerDisplay();
+          }
+
+          if (whiteTime <= 0) handleFlagFall("white");
+          if (blackTime <= 0) handleFlagFall("black");
+        }, 1000);
       }
 
-      // GANTI FUNGSI pushMoveToFirestore INI
       async function pushMoveToFirestore() {
         if (!currentGameId) return;
+        const now = Date.now();
+        let sentWhiteTime = whiteTime;
+        let sentBlackTime = blackTime;
 
-        // Saat mengirim langkah, kita kirim waktu LOKAL kita saat ini sebagai checkpoint.
-        // Tapi kita kirim blackTime/whiteTime dari variable global yang sudah dihitung oleh startTimer
+        if (!gameData.lastMove) {
+          const limit = (gameData.timeControl || 10) * 60;
+          sentWhiteTime = limit;
+          sentBlackTime = limit;
+          whiteTime = limit;
+          blackTime = limit;
+        }
 
         await db
           .collection("artifacts")
@@ -1316,149 +992,64 @@
           .update({
             fen: chess.fen(),
             pgn: chess.pgn(),
-            lastMove: { t: Date.now() }, // Waktu langkah ini dibuat
-
-            // PENTING: Kirim sisa waktu TERBARU ke DB
-            whiteTime: Math.ceil(whiteTime),
-            blackTime: Math.ceil(blackTime),
+            lastMove: { t: now },
+            whiteTime: sentWhiteTime,
+            blackTime: sentBlackTime,
           });
-
         checkGameOver(true);
       }
 
-      // GANTI FUNGSI startGameFirestore INI
-      function startGameFirestore(id, o) {
-        setupGameCommon(id, o, "Menunggu...");
-        if (gameUnsubscribe) gameUnsubscribe();
+      // --- ANIMATION & RENDER ---
+      function animateMovePiece(from, to, callback) {
+        const fromSquareDiv = document.querySelector(`[data-square="${from}"]`);
+        const toSquareDiv = document.querySelector(`[data-square="${to}"]`);
+        if (!fromSquareDiv || !toSquareDiv) {
+          callback();
+          return;
+        }
+        const pieceDiv = fromSquareDiv.querySelector(".piece");
+        if (!pieceDiv) {
+          callback();
+          return;
+        }
 
-        gameUnsubscribe = db
-          .collection("artifacts")
-          .doc(appId)
-          .collection("public")
-          .doc("data")
-          .collection("games")
-          .doc(id)
-          .onSnapshot((doc) => {
-            if (!doc.exists) return;
-            gameData = doc.data();
+        const clone = pieceDiv.cloneNode(true);
+        const startRect = fromSquareDiv.getBoundingClientRect();
+        const endRect = toSquareDiv.getBoundingClientRect();
 
-            const opp = o === "white" ? gameData.black : gameData.white;
-            if (document.getElementById("opponent-name"))
-              document.getElementById("opponent-name").innerText = opp
-                ? opp.name
-                : "Menunggu...";
+        clone.style.position = "fixed";
+        clone.style.left = startRect.left + "px";
+        clone.style.top = startRect.top + "px";
+        clone.style.width = startRect.width + "px";
+        clone.style.height = startRect.height + "px";
+        clone.style.zIndex = "9999";
+        clone.style.pointerEvents = "none";
+        clone.style.willChange = "transform";
+        clone.style.transition = "transform 0.25s cubic-bezier(0.2, 1, 0.3, 1)";
 
-            // --- SYNC WAKTU AWAL (Agar Guest tidak freeze/salah waktu) ---
-            if (gameData.timeControl) selectedTime = gameData.timeControl;
+        document.body.appendChild(clone);
+        pieceDiv.style.opacity = "0";
 
-            // Jika data waktu belum ada di DB (game baru), inisialisasi lokal
-            const limit = selectedTime === -1 ? 999999 : selectedTime * 60;
-
-            // Jangan timpa variable global jika sedang playing (biarkan startTimer yang handle)
-            // Kecuali jika ini load pertama kali (status playing tapi timer lokal masih 0 atau error)
-            if (!timerInterval || (whiteTime === 0 && blackTime === 0)) {
-              whiteTime =
-                gameData.whiteTime !== undefined ? gameData.whiteTime : limit;
-              blackTime =
-                gameData.blackTime !== undefined ? gameData.blackTime : limit;
-              updateTimerDisplay();
-            }
-            // -------------------------------------------------------------
-
-            if (gameData.status === "playing") {
-              // Deteksi langkah baru dari lawan
-              if (
-                gameData.fen &&
-                gameData.fen !== chess.fen() &&
-                gameData.fen !== "start"
-              ) {
-                if (gameData.pgn) chess.load_pgn(gameData.pgn);
-                else chess.load(gameData.fen);
-
-                const last = chess.history({ verbose: true }).pop();
-                if (chess.in_check()) playSound("check");
-                else if (last && last.flags.includes("c")) playSound("capture");
-                else playSound("move");
-
-                renderBoard();
-                updateMoveHistoryUI();
-
-                // Cek Premove
-                setTimeout(processPremoves, 100);
-              }
-
-              // Pastikan timer jalan
-              if (!timerInterval) startTimer();
-            }
-
-            if (gameData.status === "finished" && !isAnalysisMode) {
-              let r = "draw";
-              if (gameData.winner !== "draw")
-                r =
-                  gameData.winner === localStorage.getItem("chess_username")
-                    ? "win"
-                    : "loss";
-              handleGameOver(r);
-            }
-            if (
-              gameData.requests?.status === "pending" &&
-              gameData.requests.sender !== currentUser.uid
-            )
-              showRequestModal(gameData.requests.type);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const deltaX = endRect.left - startRect.left;
+            const deltaY = endRect.top - startRect.top;
+            clone.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
           });
+        });
+
+        setTimeout(() => {
+          clone.remove();
+          callback();
+        }, 260);
       }
 
-      function setupGameCommon(id, o, n) {
-        currentGameId = id;
-        boardOrientation = o;
-        playerColor = o;
-
-        // Matikan timer lama
-        if (timerInterval) clearInterval(timerInterval);
-
-        // --- FIX: JANGAN SET WAKTU DISINI ---
-        // Kita set 0 dulu, nanti akan di-update oleh startGameFirestore (dari DB)
-        // atau startGameLocal (dari setting AI)
-        whiteTime = 0;
-        blackTime = 0;
-
-        // Reset UI
-        document.getElementById("timer-self").innerText = "--:--";
-        document.getElementById("timer-opponent").innerText = "--:--";
-        document.getElementById("timer-self").classList.remove("timer-active");
-        document
-          .getElementById("timer-opponent")
-          .classList.remove("timer-active");
-
-        // Reset Logic Game
-        chess.reset();
-        isAnalysisMode = false;
-        premoveQueue = [];
-        viewHistoryIndex = -1;
-        selectedSquare = null;
-
-        // Set Nama
-        const elO = document.getElementById("opponent-name");
-        const elM = document.getElementById("player-name-display");
-        if (elO) elO.innerText = n;
-        if (elM) elM.innerText = localStorage.getItem("chess_username");
-
-        showScreen("game");
-        document.getElementById("play-controls").classList.remove("hidden");
-        document.getElementById("analysis-controls").classList.add("hidden");
-        renderBoard();
-        updateMoveHistoryUI();
-      }
-
-      // --- RENDER BOARD (DENGAN LISTENER BARU) ---
       function renderBoard() {
         const boardEl = document.getElementById("chess-board");
         if (!boardEl) return;
         boardEl.innerHTML =
           '<svg id="arrow-layer" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
-
         let boardState = chess.board();
-        // Visual Premove
         if (premoveQueue.length > 0) {
           premoveQueue.forEach((pm) => {
             const fC = pm.from.charCodeAt(0) - 97,
@@ -1471,7 +1062,6 @@
             }
           });
         }
-
         const rows =
           boardOrientation === "white"
             ? [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1481,7 +1071,6 @@
             ? [0, 1, 2, 3, 4, 5, 6, 7]
             : [7, 6, 5, 4, 3, 2, 1, 0];
         const lastMove = chess.history({ verbose: true }).pop();
-
         rows.forEach((r) => {
           cols.forEach((c) => {
             const square = String.fromCharCode(97 + c) + (8 - r);
@@ -1489,8 +1078,6 @@
             const div = document.createElement("div");
             div.className = `square ${(r + c) % 2 === 0 ? "white" : "black"}`;
             div.dataset.square = square;
-
-            // Visual Classes
             if (selectedSquare === square) div.classList.add("selected");
             if (
               lastMove &&
@@ -1527,7 +1114,6 @@
               if (moves.find((m) => m.to === square))
                 div.classList.add("possible-move");
             }
-
             if (piece) {
               const img = document.createElement("div");
               img.className = "piece";
@@ -1540,21 +1126,14 @@
                 piece.color,
                 piece.type
               )}')`;
-
-              // --- PASANG LISTENER UNTUK DRAG ---
               if (
                 viewHistoryIndex === -1 &&
                 (isAnalysisMode || piece.color === playerColor.charAt(0))
-              ) {
+              )
                 attachInputListeners(img, square);
-              }
               div.appendChild(img);
             }
-
-            // Fallback Click Listener (untuk kotak kosong/musuh)
             div.onclick = () => onSquareClick(square);
-
-            // Right Click
             if (!isMobile) {
               div.addEventListener("mousedown", (e) => {
                 if (e.button === 2) handleRightClickDown(e, square);
@@ -1573,7 +1152,364 @@
         updateStatusText();
       }
 
-      // --- HELPER LAINNYA (SAMA SEPERTI SEBELUMNYA) ---
+      // --- GAME LOGIC ---
+      function setupGameCommon(id, o, n) {
+        currentGameId = id;
+        boardOrientation = o;
+        playerColor = o;
+        if (timerInterval) clearInterval(timerInterval);
+        chess.reset();
+        isAnalysisMode = false;
+        premoveQueue = [];
+        viewHistoryIndex = -1;
+        selectedSquare = null;
+        const elO = document.getElementById("opponent-name");
+        const elM = document.getElementById("player-name-display");
+        if (elO) elO.innerText = n;
+        if (elM) elM.innerText = localStorage.getItem("chess_username");
+        whiteTime = 0;
+        blackTime = 0;
+        updateTimerDisplay();
+        showScreen("game");
+        document.getElementById("play-controls").classList.remove("hidden");
+        document.getElementById("analysis-controls").classList.add("hidden");
+        renderBoard();
+        updateMoveHistoryUI();
+      }
+
+      function startGameFirestore(id, o) {
+        setupGameCommon(id, o, "Menunggu...");
+        if (gameUnsubscribe) gameUnsubscribe();
+
+        gameUnsubscribe = db
+          .collection("artifacts")
+          .doc(appId)
+          .collection("public")
+          .doc("data")
+          .collection("games")
+          .doc(id)
+          .onSnapshot((doc) => {
+            if (!doc.exists) return;
+            gameData = doc.data();
+
+            const opp = o === "white" ? gameData.black : gameData.white;
+            if (document.getElementById("opponent-name"))
+              document.getElementById("opponent-name").innerText = opp
+                ? opp.name
+                : "Menunggu...";
+            if (gameData.timeControl) selectedTime = gameData.timeControl;
+
+            const dbW = gameData.whiteTime;
+            const dbB = gameData.blackTime;
+            if (dbW !== undefined && dbB !== undefined) {
+              if (playerColor === "white") blackTime = dbB;
+              else whiteTime = dbW;
+              if (Math.abs(whiteTime - dbW) > 2) whiteTime = dbW;
+              if (Math.abs(blackTime - dbB) > 2) blackTime = dbB;
+            }
+            updateTimerDisplay();
+
+            if (gameData.status === "playing") {
+              if (
+                gameData.fen &&
+                gameData.fen !== chess.fen() &&
+                gameData.fen !== "start"
+              ) {
+                const tempChess = new Chess();
+                if (gameData.pgn) tempChess.load_pgn(gameData.pgn);
+                else tempChess.load(gameData.fen);
+                const lastMoveHistory = tempChess.history({ verbose: true });
+                const lastMove = lastMoveHistory[lastMoveHistory.length - 1];
+
+                if (lastMove) {
+                  animateMovePiece(lastMove.from, lastMove.to, () => {
+                    if (gameData.pgn) chess.load_pgn(gameData.pgn);
+                    else chess.load(gameData.fen);
+                    const realLast = chess.history({ verbose: true }).pop();
+                    if (chess.in_check()) playSound("check");
+                    else if (realLast.flags.includes("c")) playSound("capture");
+                    else playSound("move");
+                    renderBoard();
+                    updateMoveHistoryUI();
+                    if (isAI || gameData.lastMove) {
+                      setTimeout(processPremoves, 100);
+                    }
+                  });
+                } else {
+                  if (gameData.pgn) chess.load_pgn(gameData.pgn);
+                  else chess.load(gameData.fen);
+                  renderBoard();
+                  updateMoveHistoryUI();
+                }
+              }
+              if (!timerInterval) startTimer();
+            }
+
+            if (gameData.status === "finished" && !isAnalysisMode) {
+              let r = "draw";
+              if (gameData.winner !== "draw")
+                r =
+                  gameData.winner === localStorage.getItem("chess_username")
+                    ? "win"
+                    : "loss";
+              handleGameOver(r);
+            }
+            if (
+              gameData.requests?.status === "pending" &&
+              gameData.requests.sender !== currentUser.uid
+            )
+              showRequestModal(gameData.requests.type);
+          });
+      }
+
+      function startGameLocal(id, o, n) {
+        if (gameUnsubscribe) {
+          gameUnsubscribe();
+          gameUnsubscribe = null;
+        }
+        gameData = null;
+        setupGameCommon(id, o, n);
+        const t = selectedTime === -1 ? 999999 : selectedTime * 60;
+        whiteTime = t;
+        blackTime = t;
+        updateTimerDisplay();
+        playSound("start");
+        if (o === "black") setTimeout(makeAIMove, 500);
+        else startTimer();
+      }
+
+      // --- MOVE HANDLING ---
+      function handleMoveAttempt(from, to) {
+        if (isAnalysisMode) {
+          if (chess.move({ from, to, promotion: "q" })) {
+            renderBoard();
+            updateMoveHistoryUI();
+            playSound("move");
+            if (stockfishWorker)
+              stockfishWorker.postMessage("position fen " + chess.fen());
+          }
+          return;
+        }
+        const myColor = playerColor.charAt(0);
+        const isSyncReady =
+          isAI || (gameData && (gameData.lastMove || gameData.fen === "start"));
+
+        if (chess.turn() === myColor && isSyncReady) {
+          const move = chess.move({ from, to, promotion: "q" });
+          if (move) {
+            selectedSquare = null;
+            animateMovePiece(from, to, () => {
+              clearArrowsAndHighlights();
+              renderBoard();
+              updateMoveHistoryUI();
+              if (chess.in_check()) playSound("check");
+              else if (move.flags.includes("c")) playSound("capture");
+              else playSound("move");
+              if (isAI) {
+                checkGameOver(true);
+                setTimeout(makeAIMove, 500);
+              } else {
+                pushMoveToFirestore();
+              }
+            });
+          } else {
+            selectedSquare = null;
+            renderBoard();
+          }
+        } else {
+          const tempChess = new Chess(chess.fen());
+          for (let pm of premoveQueue) {
+            forceTurn(tempChess, myColor);
+            tempChess.move({ from: pm.from, to: pm.to, promotion: "q" });
+          }
+          forceTurn(tempChess, myColor);
+          if (tempChess.move({ from, to, promotion: "q" })) {
+            premoveQueue.push({ from, to });
+            selectedSquare = null;
+            renderBoard();
+            if (isSyncReady) setTimeout(processPremoves, 100);
+          } else {
+            selectedSquare = null;
+            renderBoard();
+          }
+        }
+      }
+
+      function processPremoves() {
+        if (premoveQueue.length === 0 || chess.game_over()) return;
+        if (chess.turn() !== playerColor.charAt(0)) return;
+        const isSyncReady =
+          isAI || (gameData && (gameData.lastMove || gameData.fen === "start"));
+        if (!isSyncReady) return;
+        const moveData = premoveQueue[0];
+        const move = chess.move({
+          from: moveData.from,
+          to: moveData.to,
+          promotion: "q",
+        });
+        if (move) {
+          premoveQueue.shift();
+          animateMovePiece(moveData.from, moveData.to, () => {
+            renderBoard();
+            updateMoveHistoryUI();
+            playSound("move");
+            if (!isAI) {
+              pushMoveToFirestore();
+              setTimeout(processPremoves, 100);
+            } else {
+              setTimeout(makeAIMove, 500);
+            }
+          });
+        } else {
+          premoveQueue = [];
+          playSound("check");
+          renderBoard();
+        }
+      }
+
+      // --- INPUT HANDLERS ---
+      function attachInputListeners(element, square) {
+        element.addEventListener("mousedown", (e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          initInput(e.clientX, e.clientY, square, element);
+        });
+        element.addEventListener(
+          "touchstart",
+          (e) => {
+            const touch = e.touches[0];
+            initInput(touch.clientX, touch.clientY, square, element);
+          },
+          { passive: false }
+        );
+      }
+      function initInput(x, y, square, el) {
+        if (!isAnalysisMode && viewHistoryIndex !== -1) return;
+        isDragging = false;
+        isClickCandidate = true;
+        startX = x;
+        startY = y;
+        dragStartSquare = square;
+        draggedPieceElement = el;
+        const ghost = document.getElementById("drag-ghost");
+        if (ghost) {
+          ghost.style.backgroundImage = el.style.backgroundImage;
+          ghost.style.left = x + "px";
+          ghost.style.top = y + "px";
+          ghost.style.display = "none";
+        }
+      }
+      function handleGlobalMove(e) {
+        if (!isClickCandidate && !isDragging) return;
+        let clientX, clientY;
+        if (e.type === "touchmove") {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+        const diffX = Math.abs(clientX - startX),
+          diffY = Math.abs(clientY - startY);
+        if (!isDragging && (diffX > 5 || diffY > 5)) {
+          isDragging = true;
+          isClickCandidate = false;
+          const ghost = document.getElementById("drag-ghost");
+          if (ghost) ghost.style.display = "block";
+        }
+        if (isDragging) {
+          if (e.cancelable && e.type === "touchmove") e.preventDefault();
+          const ghost = document.getElementById("drag-ghost");
+          if (ghost) {
+            ghost.style.left = clientX + "px";
+            ghost.style.top = clientY + "px";
+          }
+        }
+      }
+      function handleGlobalEnd(e) {
+        const ghost = document.getElementById("drag-ghost");
+        if (ghost) ghost.style.display = "none";
+        if (isClickCandidate && !isDragging) {
+          isClickCandidate = false;
+          if (dragStartSquare) onSquareClick(dragStartSquare);
+          dragStartSquare = null;
+          return;
+        }
+        if (isDragging) {
+          isDragging = false;
+          isClickCandidate = false;
+          let clientX, clientY;
+          if (e.type === "touchend") {
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+          } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+          }
+          const elements = document.elementsFromPoint(clientX, clientY);
+          const squareEl = elements.find((el) =>
+            el.classList.contains("square")
+          );
+          if (squareEl) {
+            const target = squareEl.dataset.square;
+            if (target && target !== dragStartSquare)
+              handleMoveAttempt(dragStartSquare, target);
+            else onSquareClick(target);
+          } else {
+            selectedSquare = null;
+            renderBoard();
+          }
+        }
+        dragStartSquare = null;
+      }
+      function onSquareClick(square) {
+        if (arrows.length > 0 || circleHighlights.length > 0)
+          clearArrowsAndHighlights();
+        const myColor = playerColor.charAt(0);
+        const isMyTurn = chess.turn() === myColor;
+        if (!isMyTurn && !isAnalysisMode) {
+          if (selectedSquare) handleMoveAttempt(selectedSquare, square);
+          else {
+            const p = chess.get(square);
+            if (p && p.color === myColor) {
+              selectedSquare = square;
+              renderBoard();
+            } else {
+              premoveQueue = [];
+              selectedSquare = null;
+              renderBoard();
+            }
+          }
+          return;
+        }
+        if (selectedSquare === null) {
+          const p = chess.get(square);
+          if (p && (p.color === myColor || isAnalysisMode)) {
+            selectedSquare = square;
+            renderBoard();
+          }
+        } else {
+          if (selectedSquare === square) {
+            selectedSquare = null;
+            renderBoard();
+            return;
+          }
+          const p = chess.get(square);
+          if (p && p.color === myColor && !isAnalysisMode) {
+            selectedSquare = square;
+            renderBoard();
+            return;
+          }
+          handleMoveAttempt(selectedSquare, square);
+        }
+      }
+
+      // --- OTHER HELPERS ---
+      function forceTurn(chessInstance, color) {
+        const t = chessInstance.fen().split(" ");
+        t[1] = color;
+        chessInstance.load(t.join(" "));
+      }
       function updateTimerDisplay() {
         const fmt = (t) => {
           if (t < 0) t = 0;
@@ -1586,7 +1522,6 @@
           document.getElementById("timer-opponent").innerText = "∞";
           return;
         }
-
         const elS = document.getElementById("timer-self"),
           elO = document.getElementById("timer-opponent");
         if (playerColor === "white") {
@@ -1596,7 +1531,6 @@
           elS.innerText = fmt(blackTime);
           elO.innerText = fmt(whiteTime);
         }
-
         const turn = chess.turn();
         const selfTurn =
           (playerColor === "white" && turn === "w") ||
@@ -1609,94 +1543,117 @@
           elS.classList.remove("timer-active");
         }
       }
-
-      function toggleSound() {
-        soundEnabled = !soundEnabled;
-        document.getElementById("sound-toggle").innerHTML = soundEnabled
-          ? '<i class="fas fa-volume-up"></i>'
-          : '<i class="fas fa-volume-mute text-red-500"></i>';
+      function handleRightClickDown(e, s) {
+        if (!s) return;
+        isRightClicking = true;
+        rightClickStart = s;
+        rightClickCurrent = s;
       }
-      function updateConnectionStatus(c) {
-        document.getElementById("connection-status").innerText = c
-          ? "Online"
-          : "Offline";
-      }
-      async function handleLogin() {
-        const n = document.getElementById("username-input").value.trim();
-        if (n) {
-          localStorage.setItem("chess_username", n);
-          document.getElementById("user-display").innerText = n;
-          showScreen("lobby");
-          listenToLobby();
-          loadHistory();
+      function handleRightClickMove(e, s) {
+        if (isRightClicking && s) {
+          rightClickCurrent = s;
+          if (s !== rightClickStart) drawArrows();
         }
       }
-      function logout() {
-        localStorage.removeItem("chess_username");
-        location.reload();
-      }
-      function showScreen(id) {
-        ["screen-login", "screen-lobby", "screen-game"].forEach((s) =>
-          document.getElementById(s).classList.add("hidden")
-        );
-        document.getElementById("screen-" + id).classList.remove("hidden");
-      }
-      function flipBoard() {
-        boardOrientation = boardOrientation === "white" ? "black" : "white";
+      function handleRightClickUp(e, s) {
+        if (!isRightClicking) return;
+        isRightClicking = false;
+        rightClickCurrent = null;
+        if (rightClickStart === s) {
+          const i = circleHighlights.indexOf(s);
+          if (i > -1) circleHighlights.splice(i, 1);
+          else circleHighlights.push(s);
+        } else if (s) {
+          const i = arrows.findIndex(
+            (a) => a.from === rightClickStart && a.to === s
+          );
+          if (i > -1) arrows.splice(i, 1);
+          else arrows.push({ from: rightClickStart, to: s });
+        }
+        rightClickStart = null;
         renderBoard();
       }
-      function switchLobbyTab(tab) {
-        const pa = document.getElementById("lobby-panel-arena"),
-          ph = document.getElementById("lobby-panel-history"),
-          ba = document.getElementById("tab-btn-arena"),
-          bh = document.getElementById("tab-btn-history");
-        if (tab === "arena") {
-          pa.classList.remove("hidden");
-          ph.classList.add("hidden");
-          ba.classList.add("active");
-          bh.classList.remove("active");
-        } else {
-          pa.classList.add("hidden");
-          ph.classList.remove("hidden");
-          ph.classList.remove("md:flex");
-          ph.classList.add("flex");
-          bh.classList.add("active");
-          ba.classList.remove("active");
-        }
+      function clearArrowsAndHighlights() {
+        arrows = [];
+        circleHighlights = [];
+        renderBoard();
       }
-
-      // AI Helpers
-      function startGameLocal(id, o, n) {
-        // 1. PUTUS KONEKSI FIREBASE LAMA
-        if (gameUnsubscribe) {
-          gameUnsubscribe();
-          gameUnsubscribe = null;
-        }
-
-        // 2. BERSIHKAN DATA LAMA AGAR NAMA TIDAK NYANGKUT
-        gameData = null;
-
-        // 3. Setup
-        setupGameCommon(id, o, n);
-
-        // --- SET MANUAL WAKTU KHUSUS AI ---
-        // Karena setupGameCommon sekarang set waktu ke 0, kita isi manual disini
-        const t = selectedTime === -1 ? 999999 : selectedTime * 60;
-        whiteTime = t;
-        blackTime = t;
-        updateTimerDisplay();
-        // ----------------------------------
-
-        playSound("start");
-
-        if (o === "black") {
-          setTimeout(makeAIMove, 500);
-        } else {
-          startTimer();
-        }
+      function drawArrows() {
+        const svg = document.getElementById("arrow-layer");
+        if (!svg) return;
+        svg.innerHTML = "";
+        const getC = (s) => {
+          const c = s.charCodeAt(0) - 97,
+            r = 8 - parseInt(s[1]);
+          return {
+            x: (boardOrientation === "white" ? c : 7 - c) * 12.5 + 6.25,
+            y: (boardOrientation === "white" ? r : 7 - r) * 12.5 + 6.25,
+          };
+        };
+        arrows.forEach((a) =>
+          renderArrowSvg(svg, getC(a.from), getC(a.to), "#f57c00", 0.8)
+        );
+        if (
+          isRightClicking &&
+          rightClickStart &&
+          rightClickCurrent &&
+          rightClickStart !== rightClickCurrent
+        )
+          renderArrowSvg(
+            svg,
+            getC(rightClickStart),
+            getC(rightClickCurrent),
+            "#f57c00",
+            0.5
+          );
+      }
+      function renderArrowSvg(svg, s, e, c, o = 0.8) {
+        const ang = Math.atan2(e.y - s.y, e.x - s.x),
+          dist = Math.hypot(e.x - s.x, e.y - s.y);
+        if (dist < 5) return;
+        const lw = 1.2,
+          hl = 3.5,
+          hw = 3.5,
+          endX = e.x - hl * 0.1 * Math.cos(ang),
+          endY = e.y - hl * 0.1 * Math.sin(ang),
+          id = `a-${Math.random().toString(36).substr(2)}`;
+        const d = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "defs"
+          ),
+          m = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+        m.setAttribute("id", id);
+        m.setAttribute("markerWidth", hl);
+        m.setAttribute("markerHeight", hw);
+        m.setAttribute("refX", hl);
+        m.setAttribute("refY", hw / 2);
+        m.setAttribute("orient", "auto");
+        const p = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "path"
+        );
+        p.setAttribute("d", `M0,0 L${hl},${hw / 2} L0,${hw} Z`);
+        p.setAttribute("fill", c);
+        p.setAttribute("fill-opacity", o);
+        m.appendChild(p);
+        d.appendChild(m);
+        svg.appendChild(d);
+        const l = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line"
+        );
+        l.setAttribute("x1", s.x);
+        l.setAttribute("y1", s.y);
+        l.setAttribute("x2", endX);
+        l.setAttribute("y2", endY);
+        l.setAttribute("stroke", c);
+        l.setAttribute("stroke-width", lw);
+        l.setAttribute("stroke-opacity", o);
+        l.setAttribute("marker-end", `url(#${id})`);
+        svg.appendChild(l);
       }
       function makeAIMove() {
-        if (chess.game_over()) return;
+        if (chess.game_over() || chess.in_threefold_repetition()) return;
         document.getElementById("game-status").innerText = "AI Berpikir...";
         if (stockfishWorker) {
           stockfishWorker.postMessage("position fen " + chess.fen());
@@ -1721,50 +1678,299 @@
         }
       }
       function finalizeAIMove() {
+        const lastMove = chess.history({ verbose: true }).pop();
+        if (lastMove) {
+          chess.undo();
+          renderBoard();
+          chess.move(lastMove);
+          animateMovePiece(lastMove.from, lastMove.to, () => {
+            renderBoard();
+            updateMoveHistoryUI();
+            if (chess.in_check()) playSound("check");
+            else playSound("move");
+            checkGameOver(true);
+            if (chess.turn() === playerColor.charAt(0)) startTimer();
+            document.getElementById("game-status").innerText = "";
+            setTimeout(processPremoves, 200);
+          });
+        } else {
+          renderBoard();
+          updateMoveHistoryUI();
+          if (chess.in_check()) playSound("check");
+          else playSound("move");
+          checkGameOver(true);
+          if (chess.turn() === playerColor.charAt(0)) startTimer();
+          document.getElementById("game-status").innerText = "";
+          setTimeout(processPremoves, 200);
+        }
+      }
+      async function handleFlagFall(c) {
+        clearInterval(timerInterval);
+        const myColor = playerColor.charAt(0) === "w" ? "white" : "black";
+        const res = c === myColor ? "loss" : "win";
+        handleGameOver(res);
+        if (!isAI && currentGameId) {
+          const w =
+            c === "white"
+              ? gameData.black?.name || "Black"
+              : gameData.white?.name || "White";
+          await db
+            .collection("artifacts")
+            .doc(appId)
+            .collection("public")
+            .doc("data")
+            .collection("games")
+            .doc(currentGameId)
+            .update({ status: "finished", winner: w, reason: "timeout" });
+        }
+      }
+      function openCreateGameModal(t) {
+        windowPendingGameType = t;
+        document.getElementById("modal-create").classList.remove("hidden");
+        document
+          .getElementById("ai-settings")
+          .classList.toggle("hidden", t !== "ai");
+        selectTime(10);
+        selectColor("random");
+      }
+      function selectColor(c) {
+        selectedColor = c;
+        ["white", "random", "black"].forEach((x) =>
+          document
+            .getElementById(`btn-color-${x}`)
+            .classList.toggle("selected", x === c)
+        );
+      }
+      function selectTime(t) {
+        selectedTime = t;
+        [1, 3, 5, 10, 30, -1].forEach((x) =>
+          document
+            .getElementById(`btn-time-${x}`)
+            .classList.toggle("selected", x === t)
+        );
+      }
+      function confirmCreateGame() {
+        if (windowPendingGameType === "ai")
+          aiLevel = document.getElementById("ai-elo").value;
+        document.getElementById("modal-create").classList.add("hidden");
+        createGameExec(windowPendingGameType);
+      }
+      function listenToLobby() {
+        db.collection("artifacts")
+          .doc(appId)
+          .collection("public")
+          .doc("data")
+          .collection("games")
+          .where("status", "==", "waiting")
+          .limit(50)
+          .onSnapshot((snap) => {
+            const listEl = document.getElementById("room-list");
+            if (!listEl) return;
+            listEl.innerHTML = "";
+            if (snap.empty) {
+              listEl.innerHTML =
+                '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada tantangan.</div>';
+              return;
+            }
+            let games = [];
+            const now = Date.now();
+            snap.forEach((doc) => {
+              const d = doc.data();
+              if (!d.createdAt) return;
+              if (
+                now - d.createdAt.toMillis() > 3600000 ||
+                (d.white && d.black)
+              ) {
+                db.collection("artifacts")
+                  .doc(appId)
+                  .collection("public")
+                  .doc("data")
+                  .collection("games")
+                  .doc(doc.id)
+                  .delete()
+                  .catch(() => {});
+                return;
+              }
+              games.push({ id: doc.id, ...d });
+            });
+            games.sort(
+              (a, b) =>
+                (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+            );
+            games.forEach((g) => {
+              if (
+                g.white?.id === currentUser?.uid ||
+                g.black?.id === currentUser?.uid
+              )
+                return;
+              const hostName = g.white
+                ? g.white.name
+                : g.black
+                ? g.black.name
+                : "Unknown";
+              const time = g.timeControl === -1 ? "∞" : g.timeControl;
+              const div = document.createElement("div");
+              div.className =
+                "bg-[#2b1d0e] p-3 rounded flex justify-between items-center border border-[#5d4037] mb-2 hover:border-yellow-600 transition";
+              div.innerHTML = `<div class="flex items-center gap-3"><div class="w-8 h-8 rounded bg-[#1a0f00] flex items-center justify-center border border-[#5d4037]"><i class="fas ${
+                g.white
+                  ? "fa-chess-king text-[#e6d2b5]"
+                  : "fa-chess-king text-black"
+              }"></i></div><div><span class="block text-sm font-bold text-[#c5a059] font-medieval">${hostName}</span><span class="text-[10px] text-stone-500">${time} Menit</span></div></div><button onclick="joinGame('${
+                g.id
+              }', this)" class="medieval-btn px-4 py-1.5 rounded text-xs shadow-lg"><i class="fas fa-swords mr-1"></i> LAWAN</button>`;
+              listEl.appendChild(div);
+            });
+          });
+      }
+      function loadHistory() {
+        const histList = document.getElementById("history-list");
+        if (!histList) return;
+        const history = JSON.parse(
+          localStorage.getItem("chess_history") || "[]"
+        );
+        histList.innerHTML = "";
+        if (history.length === 0) {
+          histList.innerHTML =
+            '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada jejak pertempuran.</div>';
+          return;
+        }
+        history
+          .reverse()
+          .slice(0, 10)
+          .forEach((game) => {
+            const el = document.createElement("div");
+            const color =
+              game.result === "win"
+                ? "text-green-500"
+                : game.result === "loss"
+                ? "text-red-500"
+                : "text-yellow-500";
+            el.className =
+              "bg-[#2b1d0e] p-3 rounded text-xs mb-2 border border-[#5d4037] flex justify-between items-center cursor-pointer hover:border-yellow-600 transition";
+            el.innerHTML = `<div class="flex flex-col"><span class="text-[#c5a059] font-bold">vs ${
+              game.opponent
+            }</span><span class="text-[10px] text-stone-500">${new Date(
+              game.date
+            ).toLocaleDateString()}</span></div><span class="${color} font-bold uppercase border border-stone-600 px-2 py-1 rounded bg-black/30">${
+              game.result
+            }</span>`;
+            el.onclick = () => loadReplayGame(game);
+            histList.appendChild(el);
+          });
+      }
+      function loadReplayGame(game) {
+        currentGameId = null;
+        isReplayMode = true;
+        isAnalysisMode = true;
+        boardOrientation = "white";
+        if (!game.pgn) return alert("Arsip rusak.");
+        chess.load_pgn(game.pgn);
+        viewHistoryIndex = -1;
+        document.getElementById("opponent-name").innerText = game.opponent;
+        showScreen("game");
+        document.getElementById("play-controls").classList.add("hidden");
+        document.getElementById("analysis-controls").classList.remove("hidden");
         renderBoard();
         updateMoveHistoryUI();
-        if (chess.in_check()) playSound("check");
-        else playSound("move");
-        checkGameOver(true);
-        if (chess.turn() === playerColor.charAt(0)) startTimer();
-        document.getElementById("game-status").innerText = "";
-        setTimeout(processPremoves, 200);
-      }
-      function handleStockfishMessage(e) {
-        if (window.awaitingAI && e.data.startsWith("bestmove")) {
-          window.awaitingAI = false;
-          if (aiTimeout) clearTimeout(aiTimeout);
-          chess.move(e.data.split(" ")[1], { sloppy: true });
-          finalizeAIMove();
+        if (stockfishWorker) {
+          stockfishWorker.postMessage("position fen " + chess.fen());
+          stockfishWorker.postMessage("go depth 15");
         }
-        if (
-          isAnalysisMode &&
-          e.data.startsWith("info") &&
-          e.data.includes("score cp")
-        ) {
-          const m = e.data.match(/score cp (-?\d+)/);
-          if (m) {
-            let cp = parseInt(m[1]);
-            if (chess.turn() === "b") cp = -cp;
-            const f = document.getElementById("eval-fill"),
-              s = document.getElementById("eval-score");
-            if (f)
-              f.style.width = Math.max(5, Math.min(95, 50 + cp / 10)) + "%";
-            if (s) s.innerText = (cp / 100).toFixed(2);
+      }
+      async function createGameExec(type) {
+        if (!currentUser) return alert("Koneksi terputus!");
+        try {
+          const gameId = currentUser.uid + "_" + Date.now();
+          const myName = localStorage.getItem("chess_username");
+          let white = null,
+            black = null,
+            orient = "white";
+          if (selectedColor === "random")
+            selectedColor = Math.random() < 0.5 ? "white" : "black";
+          if (selectedColor === "white") {
+            white = { name: myName, id: currentUser.uid };
+            orient = "white";
+          } else {
+            black = { name: myName, id: currentUser.uid };
+            orient = "black";
           }
-        }
-        if (isAnalysisMode && e.data.startsWith("bestmove")) {
-          const el = document.getElementById("best-move-text");
-          if (el) el.innerText = "Saran: " + e.data.split(" ")[1];
+          const initialSeconds =
+            selectedTime === -1 ? 999999 : selectedTime * 60;
+          if (type === "ai") {
+            isAI = true;
+            const aiName = `Stockfish (Lv.${aiLevel})`;
+            if (orient === "white") black = { name: aiName, id: "ai" };
+            else white = { name: aiName, id: "ai" };
+            startGameLocal(gameId, orient, aiName);
+          } else {
+            isAI = false;
+            await db
+              .collection("artifacts")
+              .doc(appId)
+              .collection("public")
+              .doc("data")
+              .collection("games")
+              .doc(gameId)
+              .set({
+                white,
+                black,
+                fen: "start",
+                pgn: "",
+                status: "waiting",
+                timeControl: selectedTime,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                requests: {},
+                whiteTime: initialSeconds,
+                blackTime: initialSeconds,
+                lastMove: null,
+              });
+            startGameFirestore(gameId, orient);
+          }
+        } catch (e) {
+          alert(e.message);
         }
       }
-
-      // Standard Helpers
+      async function joinGame(id) {
+        isAI = false;
+        try {
+          const gameRef = db
+            .collection("artifacts")
+            .doc(appId)
+            .collection("public")
+            .doc("data")
+            .collection("games")
+            .doc(id);
+          const doc = await gameRef.get();
+          if (!doc.exists) return alert("Room hilang!");
+          const d = doc.data();
+          let updateData = { status: "playing" };
+          if (d.whiteTime === undefined) {
+            const limit = d.timeControl === -1 ? 999999 : d.timeControl * 60;
+            updateData.whiteTime = limit;
+            updateData.blackTime = limit;
+          }
+          const myName = localStorage.getItem("chess_username");
+          let myColor = "";
+          if (!d.white) {
+            updateData.white = { name: myName, id: currentUser.uid };
+            myColor = "white";
+          } else if (!d.black) {
+            updateData.black = { name: myName, id: currentUser.uid };
+            myColor = "black";
+          } else return alert("Penuh!");
+          await gameRef.update(updateData);
+          startGameFirestore(id, myColor);
+        } catch (e) {
+          alert(e.message);
+        }
+      }
       function checkGameOver(l) {
-        if (chess.game_over()) {
+        if (chess.game_over() || chess.in_threefold_repetition()) {
           let r = "draw";
           if (chess.in_checkmate())
             r = chess.turn() === playerColor.charAt(0) ? "loss" : "win";
+          if (chess.in_threefold_repetition()) r = "draw";
           handleGameOver(r);
           if (l && !isAI)
             db.collection("artifacts")
@@ -1778,6 +1984,8 @@
                 winner:
                   r === "win"
                     ? localStorage.getItem("chess_username")
+                    : r === "draw"
+                    ? "draw"
                     : document.getElementById("opponent-name").innerText,
               });
         }
@@ -1791,7 +1999,11 @@
             ? "KEKALAHAN"
             : "REMIS";
         document.getElementById("go-message").innerText =
-          res === "win" ? "Musuh tumbang." : "Istana runtuh.";
+          res === "win"
+            ? "Musuh tumbang."
+            : res === "loss"
+            ? "Istana runtuh."
+            : "Posisi Seimbang (Draw).";
         document.getElementById("modal-gameover").classList.remove("hidden");
         playSound("end");
         const h = JSON.parse(localStorage.getItem("chess_history") || "[]");
@@ -1808,64 +2020,6 @@
           });
           localStorage.setItem("chess_history", JSON.stringify(h));
         }
-      }
-      function startAnalysisFromModal() {
-        closeModal("modal-gameover");
-        document.getElementById("play-controls").classList.add("hidden");
-        document.getElementById("analysis-controls").classList.remove("hidden");
-        isAnalysisMode = true;
-        if (stockfishWorker)
-          stockfishWorker.postMessage("position fen " + chess.fen());
-      }
-      function exitGame() {
-        if (gameUnsubscribe) gameUnsubscribe();
-        clearInterval(timerInterval);
-        chess.reset();
-        isReplayMode = false;
-        showScreen("lobby");
-        switchLobbyTab("arena");
-        listenToLobby();
-        loadHistory();
-      }
-      function updateMoveHistoryUI() {
-        const t = document.getElementById("move-history");
-        if (!t) return;
-        t.innerHTML = "";
-        const h = chess.history();
-        for (let i = 0; i < h.length; i += 2)
-          t.innerHTML += `<tr class="border-b border-[#3e2723] hover:bg-[#2b1d0e]"><td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723]">${
-            i / 2 + 1
-          }.</td><td class="px-3 py-2 cursor-pointer hover:text-white">${
-            h[i]
-          }</td><td class="px-3 py-2 cursor-pointer hover:text-white">${
-            h[i + 1] || ""
-          }</td></tr>`;
-        if (viewHistoryIndex === -1)
-          document.getElementById("pgn-container").scrollTop = 99999;
-      }
-      function playSound(t) {
-        if (soundEnabled && audioFiles[t]) {
-          const s = new Audio(audioFiles[t]);
-          s.volume = 1;
-          s.play().catch(() => {});
-        }
-      }
-
-      // Modal & Request
-      function closeModal(id) {
-        document.getElementById(id).classList.add("hidden");
-      }
-      function showModalConfirm(t, m, y) {
-        document.getElementById("modal-title").innerText = t;
-        document.getElementById("modal-message").innerText = m;
-        document.getElementById("modal-yes-btn").onclick = () => {
-          y();
-          closeModal("modal-confirm");
-        };
-        document.getElementById("modal-no-btn").onclick = () => {
-          closeModal("modal-confirm");
-        };
-        document.getElementById("modal-confirm").classList.remove("hidden");
       }
       function showRequestModal(t) {
         document.getElementById("req-title").innerText =
@@ -1996,170 +2150,6 @@
             .update({ requests: { status: "rejected" } });
         }
       }
-
-      // Right Click & Arrows
-      function handleRightClickDown(e, s) {
-        if (!s) return;
-        isRightClicking = true;
-        rightClickStart = s;
-      }
-      function handleRightClickMove(e, s) {
-        if (isRightClicking && s) {
-          rightClickCurrent = s; // Simpan posisi sekarang
-          if (s !== rightClickStart) {
-            // Gambar ulang
-            const svg = document.getElementById("arrow-layer");
-            if (svg) {
-              // Clear dulu agar tidak numpuk
-              // (Tapi idealnya panggil drawArrows() full,
-              //  hanya saja drawArrows perlu akses ke rightClickCurrent)
-              drawArrows();
-
-              // Gambar panah preview (kuning transparan/beda warna dikit)
-              const getC = (str) => {
-                const c = str.charCodeAt(0) - 97;
-                const r = 8 - parseInt(str[1]);
-                const x =
-                  (boardOrientation === "white" ? c : 7 - c) * 12.5 + 6.25;
-                const y =
-                  (boardOrientation === "white" ? r : 7 - r) * 12.5 + 6.25;
-                return { x, y };
-              };
-              renderArrowSvg(
-                svg,
-                getC(rightClickStart),
-                getC(rightClickCurrent),
-                "#f57c00",
-                0.5
-              );
-            }
-          }
-        }
-      }
-      function handleRightClickUp(e, s) {
-        if (!isRightClicking) return;
-        isRightClicking = false;
-        rightClickCurrent = null; // Reset
-
-        if (rightClickStart === s) {
-          const i = circleHighlights.indexOf(s);
-          if (i > -1) circleHighlights.splice(i, 1);
-          else circleHighlights.push(s);
-        } else if (s) {
-          // Cek apakah panah sudah ada (hapus jika ada)
-          const i = arrows.findIndex(
-            (a) => a.from === rightClickStart && a.to === s
-          );
-          if (i > -1) arrows.splice(i, 1);
-          else arrows.push({ from: rightClickStart, to: s });
-        }
-        rightClickStart = null;
-        renderBoard();
-      }
-      function clearArrowsAndHighlights() {
-        arrows = [];
-        circleHighlights = [];
-        renderBoard();
-      }
-      // GANTI FUNGSI drawArrows INI
-      function drawArrows() {
-        const svg = document.getElementById("arrow-layer");
-        if (!svg) return;
-        svg.innerHTML = ""; // Reset
-
-        const getC = (s) => {
-          const c = s.charCodeAt(0) - 97;
-          const r = 8 - parseInt(s[1]);
-          // Konversi koordinat papan (0-7) ke koordinat SVG (0-100)
-          // Tiap kotak 12.5 unit (100 / 8)
-          // Titik tengah ada di +6.25
-          const x = (boardOrientation === "white" ? c : 7 - c) * 12.5 + 6.25;
-          const y = (boardOrientation === "white" ? r : 7 - r) * 12.5 + 6.25;
-          return { x, y };
-        };
-
-        // Render Panah (Warna Oranye ala Chess.com)
-        // Opacity 0.8 agar terlihat transparan sedikit
-        arrows.forEach((a) =>
-          renderArrowSvg(svg, getC(a.from), getC(a.to), "#f57c00", 0.8)
-        );
-
-        // Panah sementara saat drag klik kanan (Preview)
-        if (
-          isRightClicking &&
-          rightClickStart &&
-          rightClickStart !== rightClickStartCurrent
-        ) {
-          // rightClickStartCurrent perlu kita track di event handler mousemove
-          // (Lihat perbaikan kecil di bawah untuk tracking mouse move arrow)
-        }
-      }
-
-      function renderArrowSvg(svg, s, e, c, o = 0.8) {
-        // Hitung sudut dan jarak
-        const angle = Math.atan2(e.y - s.y, e.x - s.x);
-        const dist = Math.hypot(e.x - s.x, e.y - s.y);
-
-        if (dist < 5) return;
-
-        // --- UKURAN BARU (LEBIH KECIL & ELEGAN) ---
-        const lineWidth = 2; // Sebelumnya 2.8 (Terlalu tebal)
-        const headLen = 4; // Ukuran kepala panah
-        const headWidth = 3.5;
-
-        // Titik akhir garis (mundur sedikit agar tidak menabrak ujung kepala)
-        const endX = e.x - headLen * 0.1 * Math.cos(angle);
-        const endY = e.y - headLen * 0.1 * Math.sin(angle);
-
-        const id = `arrowhead-${Math.random().toString(36).substr(2, 9)}`;
-
-        // Definisi Marker (Kepala)
-        const defs = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "defs"
-        );
-        const marker = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "marker"
-        );
-        marker.setAttribute("id", id);
-        marker.setAttribute("markerWidth", headLen);
-        marker.setAttribute("markerHeight", headWidth);
-        marker.setAttribute("refX", headLen);
-        marker.setAttribute("refY", headWidth / 2);
-        marker.setAttribute("orient", "auto");
-
-        const path = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "path"
-        );
-        path.setAttribute(
-          "d",
-          `M0,0 L${headLen},${headWidth / 2} L0,${headWidth} Z`
-        );
-        path.setAttribute("fill", c);
-        path.setAttribute("fill-opacity", o);
-
-        marker.appendChild(path);
-        defs.appendChild(marker);
-        svg.appendChild(defs);
-
-        // Garis Badan
-        const line = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "line"
-        );
-        line.setAttribute("x1", s.x);
-        line.setAttribute("y1", s.y);
-        line.setAttribute("x2", endX);
-        line.setAttribute("y2", endY);
-        line.setAttribute("stroke", c);
-        line.setAttribute("stroke-width", lineWidth);
-        line.setAttribute("stroke-opacity", o);
-        line.setAttribute("marker-end", `url(#${id})`);
-
-        svg.appendChild(line);
-      }
       function updateStatusText() {
         const el = document.getElementById("turn-indicator");
         if (!el) return;
@@ -2179,255 +2169,92 @@
         if (statusEl) statusEl.innerText = chess.in_check() ? "SKAK!" : "";
       }
 
-      // Lobby & Create
-      function openCreateGameModal(t) {
-        windowPendingGameType = t;
-        document.getElementById("modal-create").classList.remove("hidden");
-        document
-          .getElementById("ai-settings")
-          .classList.toggle("hidden", t !== "ai");
-        selectTime(10);
-        selectColor("random");
-      }
-      function selectColor(c) {
-        selectedColor = c;
-        ["white", "random", "black"].forEach((x) =>
-          document
-            .getElementById(`btn-color-${x}`)
-            .classList.toggle("selected", x === c)
-        );
-      }
-      function selectTime(t) {
-        selectedTime = t;
-        [1, 3, 5, 10, 30, -1].forEach((x) =>
-          document
-            .getElementById(`btn-time-${x}`)
-            .classList.toggle("selected", x === t)
-        );
-      }
-      function confirmCreateGame() {
-        if (windowPendingGameType === "ai")
-          aiLevel = document.getElementById("ai-elo").value;
-        document.getElementById("modal-create").classList.add("hidden");
-        createGameExec(windowPendingGameType);
-      }
-      async function createGameExec(type) {
-        if (!currentUser) return alert("Koneksi terputus!");
-        try {
-          const gameId = currentUser.uid + "_" + Date.now();
-          const myName = localStorage.getItem("chess_username");
-          let white = null,
-            black = null,
-            orient = "white";
-          if (selectedColor === "random")
-            selectedColor = Math.random() < 0.5 ? "white" : "black";
-          if (selectedColor === "white") {
-            white = { name: myName, id: currentUser.uid };
-            orient = "white";
+      // ==========================================
+      // 4. MAIN INIT (DIJALANKAN PALING AKHIR)
+      // ==========================================
+
+      // Inisialisasi Aplikasi (Load Stockfish & Cek Login)
+      async function initApp() {
+        // Fetch Stockfish (Async, No Await)
+        fetch(
+          "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js"
+        )
+          .then((r) => r.blob())
+          .then((b) => {
+            stockfishWorker = new Worker(URL.createObjectURL(b));
+            stockfishWorker.onmessage = handleStockfishMessage;
+            console.log("AI Ready");
+          })
+          .catch((e) => console.warn("AI Load Error: " + e.message));
+
+        const s = localStorage.getItem("chess_username");
+        if (s) document.getElementById("username-input").value = s;
+
+        auth.onAuthStateChanged((u) => {
+          if (u) {
+            currentUser = u;
+            updateConnectionStatus(true);
+            if (
+              s &&
+              !document
+                .getElementById("screen-login")
+                .classList.contains("hidden")
+            )
+              handleLogin();
           } else {
-            black = { name: myName, id: currentUser.uid };
-            orient = "black";
+            updateConnectionStatus(false);
+            auth
+              .signInAnonymously()
+              .catch((e) => console.error("Auth Fail", e));
           }
-          if (type === "ai") {
-            isAI = true;
-            const aiName = `Stockfish (Lv.${aiLevel})`;
-            if (orient === "white") black = { name: aiName, id: "ai" };
-            else white = { name: aiName, id: "ai" };
-            startGameLocal(gameId, orient, aiName);
-          } else {
-            isAI = false;
-            await db
-              .collection("artifacts")
-              .doc(appId)
-              .collection("public")
-              .doc("data")
-              .collection("games")
-              .doc(gameId)
-              .set({
-                white,
-                black,
-                fen: "start",
-                pgn: "",
-                status: "waiting",
-                timeControl: selectedTime,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                requests: {},
-              });
-            startGameFirestore(gameId, orient);
-          }
-        } catch (e) {
-          alert(e.message);
+        });
+
+        // Global Event Listeners
+        document.addEventListener("mouseup", handleGlobalEnd);
+        document.addEventListener("touchend", handleGlobalEnd);
+        document.addEventListener("mousemove", handleGlobalMove);
+        document.addEventListener("touchmove", handleGlobalMove, {
+          passive: false,
+        });
+
+        // Prevent context menu on board
+        document.addEventListener("contextmenu", (e) => {
+          if (e.target.tagName !== "INPUT") e.preventDefault();
+        });
+      }
+
+      // --- FUNGSI UPDATE HISTORY YANG HILANG ---
+      function updateMoveHistoryUI() {
+        const tbody = document.getElementById("move-history");
+        if (!tbody) return;
+
+        tbody.innerHTML = ""; // Kosongkan tabel dulu
+
+        const history = chess.history();
+        // Loop setiap 2 langkah (Putih & Hitam)
+        for (let i = 0; i < history.length; i += 2) {
+          const moveWhite = history[i];
+          const moveBlack = history[i + 1] || "";
+          const moveNumber = i / 2 + 1;
+
+          const tr = document.createElement("tr");
+          tr.className = "border-b border-[#3e2723] hover:bg-[#2b1d0e]";
+          tr.innerHTML = `
+                <td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723] text-center">${moveNumber}.</td>
+                <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveWhite}</td>
+                <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveBlack}</td>
+            `;
+          tbody.appendChild(tr);
         }
-      }
-      function listenToLobby() {
-        db.collection("artifacts")
-          .doc(appId)
-          .collection("public")
-          .doc("data")
-          .collection("games")
-          .where("status", "==", "waiting")
-          .limit(50)
-          .onSnapshot((snap) => {
-            const listEl = document.getElementById("room-list");
-            if (!listEl) return;
-            listEl.innerHTML = "";
-            if (snap.empty) {
-              listEl.innerHTML =
-                '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada tantangan.</div>';
-              return;
-            }
-            let games = [];
-            const now = Date.now();
-            snap.forEach((doc) => {
-              const d = doc.data();
-              if (!d.createdAt) return;
-              if (
-                now - d.createdAt.toMillis() > 3600000 ||
-                (d.white && d.black)
-              ) {
-                db.collection("artifacts")
-                  .doc(appId)
-                  .collection("public")
-                  .doc("data")
-                  .collection("games")
-                  .doc(doc.id)
-                  .delete()
-                  .catch(() => {});
-                return;
-              }
-              games.push({ id: doc.id, ...d });
-            });
-            games.sort(
-              (a, b) =>
-                (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-            );
-            games.forEach((g) => {
-              if (
-                g.white?.id === currentUser?.uid ||
-                g.black?.id === currentUser?.uid
-              )
-                return;
-              const hostName = g.white
-                ? g.white.name
-                : g.black
-                ? g.black.name
-                : "Unknown";
-              const time = g.timeControl === -1 ? "∞" : g.timeControl;
-              const div = document.createElement("div");
-              div.className =
-                "bg-[#2b1d0e] p-3 rounded flex justify-between items-center border border-[#5d4037] mb-2 hover:border-yellow-600 transition";
-              div.innerHTML = `<div class="flex items-center gap-3"><div class="w-8 h-8 rounded bg-[#1a0f00] flex items-center justify-center border border-[#5d4037]"><i class="fas ${
-                g.white
-                  ? "fa-chess-king text-[#e6d2b5]"
-                  : "fa-chess-king text-black"
-              }"></i></div><div><span class="block text-sm font-bold text-[#c5a059] font-medieval">${hostName}</span><span class="text-[10px] text-stone-500">${time} Menit</span></div></div><button onclick="joinGame('${
-                g.id
-              }', this)" class="medieval-btn px-4 py-1.5 rounded text-xs shadow-lg"><i class="fas fa-swords mr-1"></i> LAWAN</button>`;
-              listEl.appendChild(div);
-            });
-          });
-      }
-      function loadHistory() {
-        const histList = document.getElementById("history-list");
-        if (!histList) return;
-        const history = JSON.parse(
-          localStorage.getItem("chess_history") || "[]"
-        );
-        histList.innerHTML = "";
-        if (history.length === 0) {
-          histList.innerHTML =
-            '<div class="text-center text-stone-500 py-4 text-xs italic">Belum ada jejak pertempuran.</div>';
-          return;
-        }
-        history
-          .reverse()
-          .slice(0, 10)
-          .forEach((game) => {
-            const el = document.createElement("div");
-            const color =
-              game.result === "win"
-                ? "text-green-500"
-                : game.result === "loss"
-                ? "text-red-500"
-                : "text-yellow-500";
-            el.className =
-              "bg-[#2b1d0e] p-3 rounded text-xs mb-2 border border-[#5d4037] flex justify-between items-center cursor-pointer hover:border-yellow-600 transition";
-            el.innerHTML = `<div class="flex flex-col"><span class="text-[#c5a059] font-bold">vs ${
-              game.opponent
-            }</span><span class="text-[10px] text-stone-500">${new Date(
-              game.date
-            ).toLocaleDateString()}</span></div><span class="${color} font-bold uppercase border border-stone-600 px-2 py-1 rounded bg-black/30">${
-              game.result
-            }</span>`;
-            el.onclick = () => loadReplayGame(game);
-            histList.appendChild(el);
-          });
-      }
-      function loadReplayGame(game) {
-        currentGameId = null;
-        isReplayMode = true;
-        isAnalysisMode = true;
-        boardOrientation = "white";
-        if (!game.pgn) return alert("Arsip rusak.");
-        chess.load_pgn(game.pgn);
-        viewHistoryIndex = -1;
-        document.getElementById("opponent-name").innerText = game.opponent;
-        showScreen("game");
-        document.getElementById("play-controls").classList.add("hidden");
-        document.getElementById("analysis-controls").classList.remove("hidden");
-        renderBoard();
-        updateMoveHistoryUI();
-        if (stockfishWorker) {
-          stockfishWorker.postMessage("position fen " + chess.fen());
-          stockfishWorker.postMessage("go depth 15");
-        }
-      }
-      // GANTI FUNGSI joinGame INI
-      async function joinGame(id) {
-        isAI = false;
-        try {
-          const gameRef = db
-            .collection("artifacts")
-            .doc(appId)
-            .collection("public")
-            .doc("data")
-            .collection("games")
-            .doc(id);
-          const doc = await gameRef.get();
 
-          if (!doc.exists) return alert("Room hilang!");
-
-          const d = doc.data();
-          const myName = localStorage.getItem("chess_username");
-          const myId = currentUser.uid;
-
-          // Data update dasar
-          let updateData = {
-            status: "playing",
-            // --- FIX PENTING: Set waktu mulai agar timer jalan ---
-            lastMove: { t: Date.now() },
-          };
-          let myColor = "";
-
-          // Tentukan warna
-          if (!d.white) {
-            updateData.white = { name: myName, id: myId };
-            myColor = "white";
-          } else if (!d.black) {
-            updateData.black = { name: myName, id: myId };
-            myColor = "black";
-          } else {
-            return alert("Penuh!");
-          }
-
-          // Update DB dan Masuk
-          await gameRef.update(updateData);
-          startGameFirestore(id, myColor);
-        } catch (e) {
-          alert(e.message);
+        // Auto scroll ke bawah jika tidak sedang melihat replay
+        if (viewHistoryIndex === -1) {
+          const container = document.getElementById("pgn-container");
+          if (container) container.scrollTop = container.scrollHeight;
         }
       }
 
+      // JALANKAN APLIKASI
       initApp();
     </script>
   </body>
