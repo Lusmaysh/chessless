@@ -8,22 +8,18 @@
     />
     <title>Kingdom Chess</title>
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- Chess Logic -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-
-    <!-- Medieval Font -->
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap"
       rel="stylesheet"
@@ -68,6 +64,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        cursor: pointer;
       }
       .medieval-btn:active {
         transform: translateY(4px);
@@ -101,51 +98,64 @@
         font-family: "MedievalSharp", cursive;
       }
 
-      /* --- FIXED BOARD CONTAINER & BOARD (BULLETPROOF V2) --- */
+      /* --- BOARD CONTAINER & BOARD (OPTIMIZED UI) --- */
       .board-container {
         display: flex;
         justify-content: center;
         align-items: center;
         width: 100%;
-        flex-grow: 1; /* Mengisi sisa ruang vertikal */
-        min-height: 0;
         padding: 0;
-        overflow: hidden;
+        position: relative;
       }
 
       .chess-board {
         display: grid;
         grid-template-columns: repeat(8, 1fr);
         grid-template-rows: repeat(8, 1fr);
-
         aspect-ratio: 1/1;
-
-        /* MAGIC FORMULA: Ambil nilai terkecil antara 95% lebar atau 55% tinggi viewport */
-        width: min(95vw, 55vh);
-        height: min(95vw, 55vh);
-
-        margin: 0 auto;
-        border: 4px solid #3e2723;
-        border-image: linear-gradient(#5d4037, #2b1d0e) 1;
         background-color: #334155;
         user-select: none;
         position: relative;
         touch-action: none;
-        box-shadow: none;
       }
 
-      /* Desktop Adjustment */
-      @media (min-width: 768px) {
+      /* MOBILE: Edge to Edge */
+      @media (max-width: 767px) {
         .board-container {
-          height: 80vh;
-          padding: 10px;
+          width: 100vw;
+          height: 100vw;
+          margin-top: 4px;
+          margin-bottom: 4px;
         }
         .chess-board {
-          width: min(75vh, 600px);
-          height: min(75vh, 600px);
-          border-width: 8px;
-          max-width: none;
-          max-height: none;
+          width: 100%;
+          height: 100%;
+          border: none;
+          border-top: 2px solid #3e2723;
+          border-bottom: 2px solid #3e2723;
+        }
+        .player-info-wrapper {
+          padding: 0 12px;
+          width: 100%;
+        }
+      }
+
+      /* DESKTOP: Centered */
+      @media (min-width: 768px) {
+        .board-container {
+          flex-grow: 1;
+          height: 100%;
+          padding: 20px;
+        }
+        .chess-board {
+          width: min(85vh, 650px);
+          height: min(85vh, 650px);
+          border: 12px solid #3e2723;
+          border-image: linear-gradient(#5d4037, #2b1d0e) 1;
+          box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+        }
+        .player-info-wrapper {
+          width: min(85vh, 650px);
         }
       }
 
@@ -206,13 +216,13 @@
       .piece {
         width: 100%;
         height: 100%;
-        background-size: 90%;
+        background-size: 100%;
         background-repeat: no-repeat;
         background-position: center;
         cursor: grab;
         z-index: 10;
-        touch-action: none; /* Mencegah scroll/zoom native saat sentuh bidak */
-        -webkit-tap-highlight-color: transparent; /* Hilangkan kedip biru saat tap */
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
       }
       .piece.dragging {
         opacity: 0.5;
@@ -255,10 +265,6 @@
         color: #ffd700;
         box-shadow: 0 0 5px #ffd700;
       }
-      .active-history {
-        background-color: var(--gold-dim);
-        color: #fff;
-      }
       .lobby-tab {
         opacity: 0.5;
         border-bottom: 4px solid transparent;
@@ -269,6 +275,16 @@
         border-bottom: 4px solid var(--gold);
         background: rgba(197, 160, 89, 0.1);
       }
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: #1a0f00;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background: #5d4037;
+        border-radius: 3px;
+      }
     </style>
   </head>
   <body
@@ -277,7 +293,6 @@
   >
     <div id="drag-ghost"></div>
 
-    <!-- MODALS -->
     <div id="modal-create" class="modal-overlay hidden">
       <div
         class="medieval-panel p-6 max-w-md w-full text-center rounded-lg m-4"
@@ -399,22 +414,14 @@
 
     <div id="modal-gameover" class="modal-overlay hidden">
       <div class="medieval-panel p-8 max-w-sm w-full text-center rounded-lg">
-        <h2 id="go-title" class="text-2xl mb-2">Selesai</h2>
+        <h2 id="go-title" class="text-2xl mb-2 text-[#ffd700]">Selesai</h2>
         <p id="go-message" class="text-slate-300 mb-6 font-medieval">...</p>
-        <div class="flex flex-col gap-3">
-          <button
-            onclick="startAnalysisFromModal()"
-            class="medieval-btn primary py-3 rounded"
-          >
-            Analisis
-          </button>
-          <button
-            onclick="closeModal('modal-gameover'); exitGame();"
-            class="medieval-btn py-3 rounded"
-          >
-            Kembali
-          </button>
-        </div>
+        <button
+          onclick="closeModal('modal-gameover')"
+          class="medieval-btn py-2 px-6 rounded"
+        >
+          Lihat Papan
+        </button>
       </div>
     </div>
 
@@ -457,7 +464,6 @@
       </div>
     </div>
 
-    <!-- Navbar -->
     <nav
       class="bg-[#1a0f00] px-3 py-2 shadow-lg flex justify-between items-center h-[50px] shrink-0 border-b-2 border-[#3e2723] z-50"
     >
@@ -494,11 +500,9 @@
       </div>
     </nav>
 
-    <!-- Main Content -->
     <main
       class="flex-1 relative w-full h-full overflow-hidden flex flex-col md:flex-row"
     >
-      <!-- LOGIN -->
       <div
         id="screen-login"
         class="absolute inset-0 z-[60] flex flex-col items-center justify-center p-4 bg-black/90"
@@ -521,10 +525,9 @@
         </div>
       </div>
 
-      <!-- LOBBY -->
       <div
         id="screen-lobby"
-        class="absolute inset-0 hidden flex flex-col z-[50] p-4"
+        class="absolute inset-0 hidden flex flex-col z-[50] p-4 bg-[#1a120b]"
       >
         <div class="w-full max-w-6xl mx-auto flex flex-col h-full">
           <div
@@ -597,7 +600,6 @@
         </div>
       </div>
 
-      <!-- GAME -->
       <div
         id="screen-game"
         class="absolute inset-0 hidden flex flex-col md:flex-row z-[40]"
@@ -606,7 +608,7 @@
           class="flex-1 flex flex-col items-center justify-center relative min-h-0 bg-[#15100d]"
         >
           <div
-            class="w-full max-w-[80vh] flex justify-between items-end mb-1 px-2 mt-2"
+            class="player-info-wrapper flex justify-between items-end mb-1 mt-2"
           >
             <div class="flex items-center gap-2">
               <div
@@ -619,13 +621,13 @@
                   id="opponent-name"
                   class="font-bold text-xs block text-[#e6d2b5] truncate max-w-[100px]"
                   >Lawan</span
-                ><span
+                >
+                <span
                   id="game-status"
                   class="text-[10px] text-yellow-500 font-mono"
                 ></span>
               </div>
             </div>
-            <!-- FIXED ID: timer-opponent -->
             <div id="timer-opponent" class="timer-box text-white">--:--</div>
           </div>
 
@@ -634,7 +636,7 @@
           </div>
 
           <div
-            class="w-full max-w-[80vh] flex justify-between items-start mt-1 px-2 mb-2"
+            class="player-info-wrapper flex justify-between items-start mt-1 mb-2"
           >
             <div class="flex items-center gap-2">
               <div
@@ -647,7 +649,8 @@
                   id="player-name-display"
                   class="font-bold text-xs block text-[#c5a059] truncate max-w-[100px]"
                   >Anda</span
-                ><span id="turn-indicator" class="text-[10px] text-stone-400"
+                >
+                <span id="turn-indicator" class="text-[10px] text-stone-400"
                   >...</span
                 >
               </div>
@@ -656,30 +659,59 @@
               <button onclick="flipBoard()" class="text-[#8a6e3e]">
                 <i class="fas fa-sync-alt"></i>
               </button>
-              <!-- FIXED ID: timer-self -->
               <div id="timer-self" class="timer-box text-white">--:--</div>
             </div>
           </div>
+
           <div
-            class="md:hidden w-full flex justify-around p-2 bg-[#2b1d0e] border-t border-[#5d4037]"
+            class="md:hidden w-full p-2 bg-[#2b1d0e] border-t border-[#5d4037]"
           >
-            <button
-              onclick="reqTakeback()"
-              class="text-stone-400 hover:text-white"
+            <div
+              id="mobile-play-controls"
+              class="flex justify-around items-center h-full"
             >
-              <i class="fas fa-undo"></i>
-            </button>
-            <button onclick="reqDraw()" class="text-stone-400 hover:text-white">
-              <i class="fas fa-handshake"></i>
-            </button>
-            <button
-              onclick="confirmResign()"
-              class="text-red-500 hover:text-red-400"
+              <button
+                onclick="reqTakeback()"
+                class="text-stone-400 hover:text-white flex flex-col items-center"
+              >
+                <i class="fas fa-undo text-lg mb-1"></i
+                ><span class="text-[9px]">Mundur</span>
+              </button>
+              <button
+                onclick="reqDraw()"
+                class="text-stone-400 hover:text-white flex flex-col items-center"
+              >
+                <i class="fas fa-handshake text-lg mb-1"></i
+                ><span class="text-[9px]">Remis</span>
+              </button>
+              <button
+                onclick="confirmResign()"
+                class="text-red-500 hover:text-red-400 flex flex-col items-center"
+              >
+                <i class="fas fa-flag text-lg mb-1"></i
+                ><span class="text-[9px]">Menyerah</span>
+              </button>
+            </div>
+            <div
+              id="mobile-post-game-controls"
+              class="hidden flex gap-2 w-full"
             >
-              <i class="fas fa-flag"></i>
-            </button>
+              <button
+                onclick="startAnalysisFromModal()"
+                class="medieval-btn flex-1 py-2 rounded text-xs"
+              >
+                <i class="fas fa-microscope mr-1"></i> Analisis
+              </button>
+              <button
+                onclick="exitGame()"
+                class="medieval-btn primary flex-1 py-2 rounded text-xs"
+              >
+                <i class="fas fa-sign-out-alt mr-1"></i> Keluar
+              </button>
+            </div>
           </div>
         </div>
+
         <div
           class="hidden md:flex w-[320px] medieval-panel border-l-4 border-[#2b1d0e] flex-col h-full shrink-0 z-20"
         >
@@ -687,7 +719,7 @@
             <div
               class="flex-1 py-2 text-center text-xs font-bold text-[#c5a059] uppercase"
             >
-              Langkah
+              Riwayat Langkah
             </div>
           </div>
           <div
@@ -699,27 +731,43 @@
             </table>
           </div>
           <div class="bg-[#1a0f00] p-4 border-t border-[#5d4037] shrink-0">
-            <div id="play-controls" class="grid grid-cols-2 gap-2">
+            <div id="desktop-play-controls" class="grid grid-cols-2 gap-2">
               <button
                 onclick="reqTakeback()"
                 class="medieval-btn py-2 rounded text-xs"
               >
-                Mundur
+                <i class="fas fa-undo mr-1"></i> Mundur
               </button>
               <button
                 onclick="reqDraw()"
                 class="medieval-btn py-2 rounded text-xs"
               >
-                Remis
+                <i class="fas fa-handshake mr-1"></i> Remis
               </button>
               <button
                 onclick="confirmResign()"
-                class="medieval-btn danger col-span-2 py-2 rounded text-xs font-bold"
+                class="medieval-btn danger col-span-2 py-3 rounded text-xs font-bold"
               >
-                MENYERAH / BATAL
+                <i class="fas fa-flag mr-1"></i> MENYERAH
               </button>
             </div>
-            <div id="analysis-controls" class="hidden flex-col gap-2">
+            <div id="desktop-post-game-controls" class="hidden flex-col gap-2">
+              <div class="flex gap-2">
+                <button
+                  onclick="exitGame()"
+                  class="medieval-btn py-2 rounded text-xs flex-1"
+                >
+                  Keluar
+                </button>
+                <button
+                  onclick="startAnalysisFromModal()"
+                  class="medieval-btn py-2 rounded text-xs flex-1"
+                >
+                  <i class="fas fa-microscope mr-1"></i> Analisis
+                </button>
+              </div>
+            </div>
+            <div id="analysis-controls" class="hidden flex-col gap-2 mt-2">
               <div class="bg-[#2b1d0e] p-2 rounded border border-[#5d4037]">
                 <div class="flex justify-between mb-1">
                   <span class="text-[10px] text-blue-400">EVAL</span
@@ -739,12 +787,6 @@
                   ...
                 </p>
               </div>
-              <button
-                onclick="exitGame()"
-                class="w-full medieval-btn py-2 rounded text-xs"
-              >
-                KEMBALI
-              </button>
             </div>
           </div>
         </div>
@@ -823,10 +865,9 @@
       };
 
       // ==========================================
-      // 2. FUNGSI PENDUKUNG (WAJIB ADA DISINI)
+      // 2. FUNGSI PENDUKUNG
       // ==========================================
 
-      // Fungsi UI Dasar (Mengatasi ReferenceError)
       function updateConnectionStatus(c) {
         const el = document.getElementById("connection-status");
         if (el) el.innerText = c ? "Online" : "Offline";
@@ -868,7 +909,6 @@
         document.getElementById("modal-confirm").classList.remove("hidden");
       }
 
-      // Fungsi Login & Auth (Mengatasi ReferenceError handleLogin)
       async function handleLogin() {
         const n = document.getElementById("username-input").value.trim();
         if (n) {
@@ -892,7 +932,6 @@
         document.getElementById("screen-" + id).classList.remove("hidden");
       }
 
-      // Fungsi Handler Stockfish (Mengatasi ReferenceError handleStockfishMessage)
       function handleStockfishMessage(e) {
         if (window.awaitingAI && e.data.startsWith("bestmove")) {
           window.awaitingAI = false;
@@ -923,7 +962,7 @@
       }
 
       // ==========================================
-      // 3. CORE LOGIC (TIMER, MOVE, PREMOVE)
+      // 3. CORE LOGIC
       // ==========================================
 
       function startTimer() {
@@ -934,7 +973,6 @@
         lastTimestamp = Date.now();
 
         timerInterval = setInterval(() => {
-          // ONLINE: Tunggu langkah pertama
           if (!isAI && (!gameData || !gameData.lastMove)) {
             if (gameData && gameData.whiteTime) {
               whiteTime = gameData.whiteTime;
@@ -952,7 +990,6 @@
             else blackTime -= 1;
             lastTimestamp = now;
 
-            // Sync Guest agar tidak drift
             if (!isAI && gameData) {
               const myColor = playerColor.charAt(0);
               if (chess.turn() !== myColor) {
@@ -999,7 +1036,6 @@
         checkGameOver(true);
       }
 
-      // --- ANIMATION & RENDER ---
       function animateMovePiece(from, to, callback) {
         const fromSquareDiv = document.querySelector(`[data-square="${from}"]`);
         const toSquareDiv = document.querySelector(`[data-square="${to}"]`);
@@ -1152,7 +1188,6 @@
         updateStatusText();
       }
 
-      // --- GAME LOGIC ---
       function setupGameCommon(id, o, n) {
         currentGameId = id;
         boardOrientation = o;
@@ -1171,7 +1206,9 @@
         blackTime = 0;
         updateTimerDisplay();
         showScreen("game");
-        document.getElementById("play-controls").classList.remove("hidden");
+
+        toggleGameOverControls(false); // Reset Tombol UI
+
         document.getElementById("analysis-controls").classList.add("hidden");
         renderBoard();
         updateMoveHistoryUI();
@@ -1278,7 +1315,6 @@
         else startTimer();
       }
 
-      // --- MOVE HANDLING ---
       function handleMoveAttempt(from, to) {
         if (isAnalysisMode) {
           if (chess.move({ from, to, promotion: "q" })) {
@@ -1367,7 +1403,6 @@
         }
       }
 
-      // --- INPUT HANDLERS ---
       function attachInputListeners(element, square) {
         element.addEventListener("mousedown", (e) => {
           if (e.button !== 0) return;
@@ -1504,7 +1539,6 @@
         }
       }
 
-      // --- OTHER HELPERS ---
       function forceTurn(chessInstance, color) {
         const t = chessInstance.fen().split(" ");
         t[1] = color;
@@ -1869,7 +1903,9 @@
         viewHistoryIndex = -1;
         document.getElementById("opponent-name").innerText = game.opponent;
         showScreen("game");
-        document.getElementById("play-controls").classList.add("hidden");
+
+        toggleGameOverControls(true); // Tampilkan menu analisis
+
         document.getElementById("analysis-controls").classList.remove("hidden");
         renderBoard();
         updateMoveHistoryUI();
@@ -2005,6 +2041,9 @@
             ? "Istana runtuh."
             : "Posisi Seimbang (Draw).";
         document.getElementById("modal-gameover").classList.remove("hidden");
+
+        toggleGameOverControls(true); // Aktifkan tombol analisis/rematch
+
         playSound("end");
         const h = JSON.parse(localStorage.getItem("chess_history") || "[]");
         const o = document.getElementById("opponent-name").innerText;
@@ -2170,12 +2209,11 @@
       }
 
       // ==========================================
-      // 4. MAIN INIT (DIJALANKAN PALING AKHIR)
+      // 4. MAIN INIT & UI HELPERS
       // ==========================================
 
-      // Inisialisasi Aplikasi (Load Stockfish & Cek Login)
       async function initApp() {
-        // Fetch Stockfish (Async, No Await)
+        // Load Stockfish Worker
         fetch(
           "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js"
         )
@@ -2209,7 +2247,6 @@
           }
         });
 
-        // Global Event Listeners
         document.addEventListener("mouseup", handleGlobalEnd);
         document.addEventListener("touchend", handleGlobalEnd);
         document.addEventListener("mousemove", handleGlobalMove);
@@ -2217,44 +2254,122 @@
           passive: false,
         });
 
-        // Prevent context menu on board
         document.addEventListener("contextmenu", (e) => {
           if (e.target.tagName !== "INPUT") e.preventDefault();
         });
       }
 
-      // --- FUNGSI UPDATE HISTORY YANG HILANG ---
       function updateMoveHistoryUI() {
         const tbody = document.getElementById("move-history");
         if (!tbody) return;
 
-        tbody.innerHTML = ""; // Kosongkan tabel dulu
-
+        tbody.innerHTML = "";
         const history = chess.history();
-        // Loop setiap 2 langkah (Putih & Hitam)
         for (let i = 0; i < history.length; i += 2) {
           const moveWhite = history[i];
           const moveBlack = history[i + 1] || "";
           const moveNumber = i / 2 + 1;
-
           const tr = document.createElement("tr");
           tr.className = "border-b border-[#3e2723] hover:bg-[#2b1d0e]";
           tr.innerHTML = `
-                <td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723] text-center">${moveNumber}.</td>
-                <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveWhite}</td>
-                <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveBlack}</td>
-            `;
+            <td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723] text-center">${moveNumber}.</td>
+            <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveWhite}</td>
+            <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveBlack}</td>
+        `;
           tbody.appendChild(tr);
         }
-
-        // Auto scroll ke bawah jika tidak sedang melihat replay
         if (viewHistoryIndex === -1) {
           const container = document.getElementById("pgn-container");
           if (container) container.scrollTop = container.scrollHeight;
         }
       }
 
-      // JALANKAN APLIKASI
+      // UI Helpers untuk Toggle Tombol Game Over
+      function toggleGameOverControls(isGameOver) {
+        const mobilePlay = document.getElementById("mobile-play-controls");
+        const mobilePost = document.getElementById("mobile-post-game-controls");
+        const desktopPlay = document.getElementById("desktop-play-controls");
+        const desktopPost = document.getElementById(
+          "desktop-post-game-controls"
+        );
+        if (isGameOver) {
+          mobilePlay.classList.add("hidden");
+          mobilePost.classList.remove("hidden");
+          mobilePost.classList.add("flex");
+          desktopPlay.classList.add("hidden");
+          desktopPost.classList.remove("hidden");
+          desktopPost.classList.add("flex");
+        } else {
+          mobilePlay.classList.remove("hidden");
+          mobilePost.classList.add("hidden");
+          mobilePost.classList.remove("flex");
+          desktopPlay.classList.remove("hidden");
+          desktopPost.classList.add("hidden");
+          desktopPost.classList.remove("flex");
+        }
+      }
+
+      function startAnalysisFromModal() {
+        closeModal("modal-gameover");
+        isAnalysisMode = true;
+        document.getElementById("play-controls")?.classList.add("hidden"); // Hide regular controls if exposed
+        document.getElementById("analysis-controls").classList.remove("hidden");
+        // Trigger Stockfish analysis on current position
+        if (stockfishWorker) {
+          stockfishWorker.postMessage("position fen " + chess.fen());
+          stockfishWorker.postMessage("go depth 20");
+        }
+      }
+
+      function exitGame() {
+        // Stop timers and AI
+        if (timerInterval) clearInterval(timerInterval);
+        if (gameUnsubscribe) {
+          gameUnsubscribe();
+          gameUnsubscribe = null;
+        }
+
+        // Return to lobby
+        showScreen("lobby");
+        currentGameId = null;
+        gameData = null;
+        chess.reset();
+      }
+
+      function switchLobbyTab(tab) {
+        document
+          .querySelectorAll(".lobby-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document.getElementById("tab-btn-" + tab).classList.add("active");
+
+        if (tab === "arena") {
+          document
+            .getElementById("lobby-panel-arena")
+            .classList.remove("hidden");
+          document
+            .getElementById("lobby-panel-history")
+            .classList.add("hidden");
+          document.getElementById("lobby-panel-arena").classList.add("flex");
+        } else {
+          document.getElementById("lobby-panel-arena").classList.add("hidden");
+          document.getElementById("lobby-panel-arena").classList.remove("flex");
+          document
+            .getElementById("lobby-panel-history")
+            .classList.remove("hidden");
+          document.getElementById("lobby-panel-history").classList.add("flex");
+        }
+      }
+
+      // Flip board visual only
+      function flipBoard() {
+        const boardEl = document.getElementById("chess-board");
+        // Logic handled by re-rendering with different orientation global var?
+        // Simple logic for visual flip:
+        if (boardOrientation === "white") boardOrientation = "black";
+        else boardOrientation = "white";
+        renderBoard();
+      }
+
       initApp();
     </script>
   </body>
