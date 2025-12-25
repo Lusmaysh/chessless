@@ -26,6 +26,19 @@
     />
 
     <style>
+      @media (max-width: 1023px) {
+        .sidebar-right {
+          display: none; /* <--- INI MENYEMBUNYIKAN SIDEBAR DI TABLET */
+        }
+      }
+
+      /* Secara default sembunyikan elemen ini di layar kecil */
+      @media (max-width: 768px) {
+        #desktop-play-controls {
+          display: none !important;
+        }
+      }
+
       :root {
         --wood-dark: #2b1d0e;
         --wood-light: #5d4037;
@@ -55,29 +68,32 @@
       }
       .medieval-btn {
         background: linear-gradient(to bottom, #5d4037, #3e2723);
-        border: 2px solid var(--gold-dim);
+        border: 1px solid var(--gold-dim);
         color: var(--parchment);
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         transition: all 0.2s;
-        box-shadow: 0 4px 0 #271914;
+        box-shadow: 0 3px 0 #271914;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        border-radius: 4px;
       }
       .medieval-btn:active {
-        transform: translateY(4px);
+        transform: translateY(3px);
         box-shadow: 0 0 0 #271914;
       }
       .medieval-btn.primary {
         background: linear-gradient(to bottom, #b8860b, #8b6508);
         color: #1a0f00;
         border-color: #ffd700;
+        font-weight: bold;
       }
       .medieval-btn.danger {
         background: linear-gradient(to bottom, #8b0000, #500000);
         border-color: #ff4444;
+        font-weight: bold;
       }
       .medieval-btn.selected {
         border-color: #ffd700;
@@ -86,7 +102,7 @@
         color: #fff;
       }
       .medieval-btn:disabled {
-        opacity: 0.7;
+        opacity: 0.5;
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
@@ -98,7 +114,42 @@
         font-family: "MedievalSharp", cursive;
       }
 
-      /* --- BOARD CONTAINER & BOARD (OPTIMIZED UI) --- */
+      /* --- BOARD CONTAINER & BOARD --- */
+      .game-layout {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Desktop Layout */
+      @media (min-width: 1024px) {
+        .game-layout {
+          flex-direction: row;
+          align-items: stretch;
+          padding: 20px;
+          gap: 20px;
+        }
+        .sidebar-left {
+          width: 240px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          height: 100%;
+        }
+        .center-board {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+        }
+        .sidebar-right {
+          width: 320px;
+          height: 100%;
+        }
+      }
+
       .board-container {
         display: flex;
         justify-content: center;
@@ -119,43 +170,100 @@
         touch-action: none;
       }
 
-      /* MOBILE: Edge to Edge */
-      @media (max-width: 767px) {
+      /* MOBILE: Layout Specifics */
+      @media (max-width: 1023px) {
+        .game-layout {
+          padding: 0;
+        }
+        .sidebar-left {
+          display: none;
+        }
+        .center-board {
+          order: 2;
+          flex-grow: 1;
+          min-height: 0;
+        }
+        .sidebar-right {
+          display: none;
+        }
+
+        /* Top Strip (Opponent) */
+        .mobile-header-top {
+          display: flex;
+          padding: 8px 10px;
+          background: rgba(0, 0, 0, 0.3);
+          justify-content: space-between;
+          align-items: center;
+          height: 60px;
+          order: 1;
+          border-bottom: 1px solid #3e2723;
+        }
+
+        /* Bottom Deck (My Info + Controls) - Only ONE bottom area now */
+        .mobile-bottom-deck {
+          display: flex;
+          flex-direction: column;
+          background: #1a0f00;
+          border-top: 2px solid #5d4037;
+          box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+          z-index: 50;
+          order: 3;
+          flex-shrink: 0;
+        }
+
+        .mobile-player-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 5px 10px;
+          background: linear-gradient(to bottom, #2b1d0e, #1a0f00);
+          border-bottom: 1px solid #3e2723;
+          height: 50px;
+        }
+
+        .mobile-controls {
+          display: flex;
+          justify-content: space-around;
+          padding: 8px 5px;
+          background: #1a0f00;
+          gap: 5px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .mobile-header-top,
+        .mobile-bottom-deck {
+          display: none;
+        }
+      }
+
+      /* Desktop: Board sizing */
+      @media (min-width: 1024px) {
+        .board-container {
+          height: 100%;
+        }
+        .chess-board {
+          width: 100%;
+          height: 100%;
+          max-height: 85vh;
+          max-width: 85vh;
+          border: 12px solid #3e2723;
+          border-image: linear-gradient(#5d4037, #2b1d0e) 1;
+          box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+        }
+      }
+
+      /* Mobile: Board sizing */
+      @media (max-width: 1023px) {
         .board-container {
           width: 100vw;
           height: 100vw;
-          margin-top: 4px;
-          margin-bottom: 4px;
         }
         .chess-board {
           width: 100%;
           height: 100%;
           border: none;
           border-top: 2px solid #3e2723;
-          border-bottom: 2px solid #3e2723;
-        }
-        .player-info-wrapper {
-          padding: 0 12px;
-          width: 100%;
-        }
-      }
-
-      /* DESKTOP: Centered */
-      @media (min-width: 768px) {
-        .board-container {
-          flex-grow: 1;
-          height: 100%;
-          padding: 20px;
-        }
-        .chess-board {
-          width: min(85vh, 650px);
-          height: min(85vh, 650px);
-          border: 12px solid #3e2723;
-          border-image: linear-gradient(#5d4037, #2b1d0e) 1;
-          box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
-        }
-        .player-info-wrapper {
-          width: min(85vh, 650px);
         }
       }
 
@@ -248,6 +356,13 @@
         z-index: 100;
         backdrop-filter: blur(4px);
       }
+
+      /* Player Cards & Captured Pieces */
+      .player-card {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
       .timer-box {
         font-family: monospace;
         font-size: 1.2rem;
@@ -256,8 +371,9 @@
         border-radius: 4px;
         background: #1a0f00;
         border: 1px solid #5d4037;
-        width: 70px;
         text-align: center;
+        width: 80px;
+        align-self: center;
       }
       .timer-active {
         background: #3e2723;
@@ -265,6 +381,61 @@
         color: #ffd700;
         box-shadow: 0 0 5px #ffd700;
       }
+      .captured-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        min-height: 20px;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4px;
+        border-radius: 4px;
+        max-width: 140px;
+      }
+      .captured-piece {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+      }
+      .score-indicator {
+        font-size: 0.8rem;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #000;
+        color: #fff;
+        border: 1px solid #444;
+        align-self: center;
+      }
+      .score-pos {
+        color: #4ade80;
+      }
+      .score-neg {
+        color: #f87171;
+      }
+
+      /* Mobile PGN */
+      .mobile-pgn-container {
+        height: 80px;
+        overflow-y: auto;
+        background: #15100d;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #e6d2b5;
+        border-top: 1px dashed #3e2723;
+      }
+
+      /* Mobile Captured Area (Inline) */
+      .mobile-captures {
+        display: flex;
+        gap: 2px;
+        max-width: 60px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      /* Utility */
       .lobby-tab {
         opacity: 0.5;
         border-bottom: 4px solid transparent;
@@ -293,6 +464,7 @@
   >
     <div id="drag-ghost"></div>
 
+    <!-- MODALS -->
     <div id="modal-create" class="modal-overlay hidden">
       <div
         class="medieval-panel p-6 max-w-md w-full text-center rounded-lg m-4"
@@ -464,6 +636,7 @@
       </div>
     </div>
 
+    <!-- NAVBAR -->
     <nav
       class="bg-[#1a0f00] px-3 py-2 shadow-lg flex justify-between items-center h-[50px] shrink-0 border-b-2 border-[#3e2723] z-50"
     >
@@ -500,9 +673,8 @@
       </div>
     </nav>
 
-    <main
-      class="flex-1 relative w-full h-full overflow-hidden flex flex-col md:flex-row"
-    >
+    <main class="flex-1 relative w-full h-full overflow-hidden flex flex-col">
+      <!-- LOGIN SCREEN -->
       <div
         id="screen-login"
         class="absolute inset-0 z-[60] flex flex-col items-center justify-center p-4 bg-black/90"
@@ -525,6 +697,7 @@
         </div>
       </div>
 
+      <!-- LOBBY SCREEN -->
       <div
         id="screen-lobby"
         class="absolute inset-0 hidden flex flex-col z-[50] p-4 bg-[#1a120b]"
@@ -600,192 +773,278 @@
         </div>
       </div>
 
-      <div
-        id="screen-game"
-        class="absolute inset-0 hidden flex flex-col md:flex-row z-[40]"
-      >
-        <div
-          class="flex-1 flex flex-col items-center justify-center relative min-h-0 bg-[#15100d]"
-        >
-          <div
-            class="player-info-wrapper flex justify-between items-end mb-1 mt-2"
-          >
-            <div class="flex items-center gap-2">
-              <div
-                class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#5d4037] flex items-center justify-center text-yellow-600"
-              >
-                <i class="fas fa-user"></i>
-              </div>
-              <div>
-                <span
-                  id="opponent-name"
-                  class="font-bold text-xs block text-[#e6d2b5] truncate max-w-[100px]"
-                  >Lawan</span
+      <!-- GAME SCREEN -->
+      <div id="screen-game" class="absolute inset-0 hidden z-[40]">
+        <div class="game-layout">
+          <!-- SIDEBAR LEFT (Desktop Only) -->
+          <div class="sidebar-left">
+            <!-- Opponent Card (Desktop) -->
+            <div
+              class="medieval-panel p-3 rounded-lg flex flex-col gap-2 bg-[#1a0f00]"
+            >
+              <div id="timer-opponent" class="timer-box text-white">--:--</div>
+              <div class="flex items-center gap-2 justify-center">
+                <div
+                  class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#5d4037] flex items-center justify-center text-yellow-600"
                 >
-                <span
-                  id="game-status"
-                  class="text-[10px] text-yellow-500 font-mono"
-                ></span>
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="text-center">
+                  <span
+                    id="opponent-name"
+                    class="font-bold text-xs block text-[#e6d2b5]"
+                    >Lawan</span
+                  >
+                  <div
+                    id="eval-badge"
+                    class="text-[10px] font-bold mt-1 px-1 rounded bg-black text-gray-400"
+                  >
+                    0.0
+                  </div>
+                </div>
               </div>
+              <div id="captured-by-me" class="captured-container"></div>
             </div>
-            <div id="timer-opponent" class="timer-box text-white">--:--</div>
-          </div>
 
-          <div class="board-container">
-            <div id="chess-board" class="chess-board rounded-sm"></div>
-          </div>
+            <div class="flex-1"></div>
 
-          <div
-            class="player-info-wrapper flex justify-between items-start mt-1 mb-2"
-          >
-            <div class="flex items-center gap-2">
-              <div
-                class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#c5a059] flex items-center justify-center text-yellow-400"
-              >
-                <i class="fas fa-user"></i>
-              </div>
-              <div>
-                <span
-                  id="player-name-display"
-                  class="font-bold text-xs block text-[#c5a059] truncate max-w-[100px]"
-                  >Anda</span
+            <!-- Self Card (Desktop) -->
+            <div
+              class="medieval-panel p-3 rounded-lg flex flex-col gap-2 bg-[#1a0f00]"
+            >
+              <div class="flex items-center gap-2 justify-center">
+                <div
+                  class="w-8 h-8 rounded bg-[#2b1d0e] border border-[#c5a059] flex items-center justify-center text-yellow-400"
                 >
-                <span id="turn-indicator" class="text-[10px] text-stone-400"
-                  >...</span
-                >
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="text-center">
+                  <span
+                    id="player-name-display"
+                    class="font-bold text-xs block text-[#c5a059]"
+                    >Anda</span
+                  >
+                  <span id="turn-indicator" class="text-[10px] text-stone-400"
+                    >...</span
+                  >
+                </div>
               </div>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="flipBoard()" class="text-[#8a6e3e]">
-                <i class="fas fa-sync-alt"></i>
-              </button>
+              <div id="captured-by-opp" class="captured-container"></div>
               <div id="timer-self" class="timer-box text-white">--:--</div>
             </div>
           </div>
 
-          <div
-            class="md:hidden w-full p-2 bg-[#2b1d0e] border-t border-[#5d4037]"
-          >
-            <div
-              id="mobile-play-controls"
-              class="flex justify-around items-center h-full"
-            >
+          <!-- MOBILE HEADER (Opponent) -->
+          <div class="mobile-header-top">
+            <div class="flex flex-col justify-center items-start">
+              <div class="flex items-center gap-2">
+                <div
+                  class="w-6 h-6 rounded bg-[#2b1d0e] border border-[#5d4037] flex items-center justify-center text-yellow-600 text-xs"
+                >
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    id="mob-opponent-name"
+                    class="font-bold text-xs block text-[#e6d2b5]"
+                    >Lawan</span
+                  >
+                  <span
+                    id="mob-eval-badge"
+                    class="text-[9px] font-bold text-gray-400"
+                    >0.0</span
+                  >
+                </div>
+              </div>
+              <div id="mob-captured-by-me" class="mobile-captures mt-1"></div>
+            </div>
+            <div id="mob-timer-opponent" class="timer-box text-xs py-0 px-2">
+              --:--
+            </div>
+          </div>
+
+          <!-- CENTER BOARD -->
+          <div class="center-board bg-[#15100d] relative">
+            <div class="board-container">
+              <div id="chess-board" class="chess-board rounded-sm"></div>
+            </div>
+          </div>
+
+          <!-- MOBILE BOTTOM DECK (Controls + My Info) -->
+          <div class="mobile-bottom-deck">
+            <!-- My Info Section -->
+            <div class="mobile-player-info">
+              <div id="mob-timer-self" class="timer-box text-xs py-0 px-2">
+                --:--
+              </div>
+              <div class="flex flex-col justify-center items-end">
+                <div class="flex items-center gap-2">
+                  <div class="flex flex-col items-end">
+                    <span
+                      id="mob-player-name"
+                      class="font-bold text-xs block text-[#c5a059]"
+                      >Anda</span
+                    >
+                    <span
+                      id="mob-turn-indicator"
+                      class="text-[9px] text-stone-400"
+                      >...</span
+                    >
+                  </div>
+                  <div
+                    class="w-6 h-6 rounded bg-[#2b1d0e] border border-[#c5a059] flex items-center justify-center text-yellow-400 text-xs"
+                  >
+                    <i class="fas fa-user"></i>
+                  </div>
+                </div>
+                <div
+                  id="mob-captured-by-opp"
+                  class="mobile-captures mt-1"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Action Buttons Section -->
+            <div id="mobile-play-controls" class="mobile-controls">
               <button
                 onclick="reqTakeback()"
-                class="text-stone-400 hover:text-white flex flex-col items-center"
+                class="medieval-btn py-2 px-4 rounded text-xs w-1/3"
               >
-                <i class="fas fa-undo text-lg mb-1"></i
-                ><span class="text-[9px]">Mundur</span>
+                <i class="fas fa-undo mb-1 block"></i>Mundur
               </button>
               <button
                 onclick="reqDraw()"
-                class="text-stone-400 hover:text-white flex flex-col items-center"
+                class="medieval-btn primary py-2 px-4 rounded text-xs w-1/3"
               >
-                <i class="fas fa-handshake text-lg mb-1"></i
-                ><span class="text-[9px]">Remis</span>
+                <i class="fas fa-handshake mb-1 block"></i>Remis
               </button>
               <button
-                onclick="confirmResign()"
-                class="text-red-500 hover:text-red-400 flex flex-col items-center"
+                id="btn-resign-mobile"
+                onclick="handleResignOrCancel()"
+                class="medieval-btn danger py-2 px-4 rounded text-xs w-1/3"
               >
-                <i class="fas fa-flag text-lg mb-1"></i
-                ><span class="text-[9px]">Menyerah</span>
+                <i class="fas fa-flag mb-1 block"></i
+                ><span id="btn-resign-text-mobile">MENYERAH</span>
               </button>
             </div>
+
+            <!-- Post Game Controls -->
             <div
               id="mobile-post-game-controls"
-              class="hidden flex gap-2 w-full"
+              class="hidden mobile-controls border-t border-[#5d4037] pt-2"
             >
               <button
                 onclick="startAnalysisFromModal()"
-                class="medieval-btn flex-1 py-2 rounded text-xs"
+                class="medieval-btn primary py-2 px-4 rounded text-xs w-1/2"
               >
-                <i class="fas fa-microscope mr-1"></i> Analisis
+                Analisis
               </button>
               <button
                 onclick="exitGame()"
-                class="medieval-btn primary flex-1 py-2 rounded text-xs"
+                class="medieval-btn py-2 px-4 rounded text-xs w-1/2"
               >
-                <i class="fas fa-sign-out-alt mr-1"></i> Keluar
+                Keluar
               </button>
             </div>
-          </div>
-        </div>
 
-        <div
-          class="hidden md:flex w-[320px] medieval-panel border-l-4 border-[#2b1d0e] flex-col h-full shrink-0 z-20"
-        >
-          <div class="flex bg-[#1a0f00] border-b border-[#5d4037] shrink-0">
+            <!-- PGN Section (Below buttons) -->
             <div
-              class="flex-1 py-2 text-center text-xs font-bold text-[#c5a059] uppercase"
+              id="mobile-pgn-display"
+              class="mobile-pgn-container custom-scroll hidden"
             >
-              Riwayat Langkah
+              <!-- Move history will be injected here -->
             </div>
           </div>
+
+          <!-- SIDEBAR RIGHT (Desktop History/Controls) -->
           <div
-            class="flex-1 overflow-y-auto bg-[#23170f] p-0 custom-scroll"
-            id="pgn-container"
+            id="pgn-header"
+            class="sidebar-right medieval-panel border-l-4 border-[#2b1d0e] flex flex-col z-20"
           >
-            <table class="w-full text-sm text-left border-collapse">
-              <tbody id="move-history" class="text-[#e6d2b5] font-mono"></tbody>
-            </table>
-          </div>
-          <div class="bg-[#1a0f00] p-4 border-t border-[#5d4037] shrink-0">
-            <div id="desktop-play-controls" class="grid grid-cols-2 gap-2">
-              <button
-                onclick="reqTakeback()"
-                class="medieval-btn py-2 rounded text-xs"
+            <div class="flex bg-[#1a0f00] border-b border-[#5d4037] shrink-0">
+              <div
+                class="flex-1 py-2 text-center text-xs font-bold text-[#c5a059] uppercase"
               >
-                <i class="fas fa-undo mr-1"></i> Mundur
-              </button>
-              <button
-                onclick="reqDraw()"
-                class="medieval-btn py-2 rounded text-xs"
-              >
-                <i class="fas fa-handshake mr-1"></i> Remis
-              </button>
-              <button
-                onclick="confirmResign()"
-                class="medieval-btn danger col-span-2 py-3 rounded text-xs font-bold"
-              >
-                <i class="fas fa-flag mr-1"></i> MENYERAH
-              </button>
-            </div>
-            <div id="desktop-post-game-controls" class="hidden flex-col gap-2">
-              <div class="flex gap-2">
-                <button
-                  onclick="exitGame()"
-                  class="medieval-btn py-2 rounded text-xs flex-1"
-                >
-                  Keluar
-                </button>
-                <button
-                  onclick="startAnalysisFromModal()"
-                  class="medieval-btn py-2 rounded text-xs flex-1"
-                >
-                  <i class="fas fa-microscope mr-1"></i> Analisis
-                </button>
+                Riwayat Langkah
               </div>
             </div>
-            <div id="analysis-controls" class="hidden flex-col gap-2 mt-2">
-              <div class="bg-[#2b1d0e] p-2 rounded border border-[#5d4037]">
-                <div class="flex justify-between mb-1">
-                  <span class="text-[10px] text-blue-400">EVAL</span
-                  ><span id="eval-score" class="text-[10px]">0.0</span>
-                </div>
-                <div class="h-1 bg-black rounded-full overflow-hidden">
-                  <div
-                    id="eval-fill"
-                    class="h-full bg-white"
-                    style="width: 50%"
-                  ></div>
-                </div>
-                <p
-                  id="best-move-text"
-                  class="text-[10px] text-center mt-1 text-[#c5a059]"
+            <div
+              class="flex-1 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden bg-[#23170f] p-0 custom-scroll"
+              id="pgn-container"
+            >
+              <table
+                class="text-sm text-left border-collapse flex lg:table w-full"
+              >
+                <tbody
+                  id="move-history"
+                  class="text-[#e6d2b5] font-mono flex flex-row items-center lg:table-row-group"
+                ></tbody>
+              </table>
+            </div>
+            <div class="bg-[#1a0f00] border-t border-[#5d4037] shrink-0">
+              <div
+                id="desktop-play-controls"
+                class="hidden md:grid grid-cols-2 gap-2"
+              >
+                <button
+                  onclick="reqTakeback()"
+                  class="medieval-btn py-2 rounded text-xs"
                 >
-                  ...
-                </p>
+                  <i class="fas fa-undo mr-1"></i> Mundur
+                </button>
+                <button
+                  onclick="reqDraw()"
+                  class="medieval-btn py-2 rounded text-xs"
+                >
+                  <i class="fas fa-handshake mr-1"></i> Remis
+                </button>
+                <button
+                  id="btn-resign-desktop"
+                  onclick="handleResignOrCancel()"
+                  class="medieval-btn danger col-span-2 py-3 rounded text-xs font-bold"
+                >
+                  <i class="fas fa-flag mr-1"></i> <span>MENYERAH</span>
+                </button>
+              </div>
+              <div
+                id="desktop-post-game-controls"
+                class="hidden flex-col gap-2"
+              >
+                <div class="flex gap-2">
+                  <button
+                    onclick="exitGame()"
+                    class="medieval-btn py-2 rounded text-xs flex-1"
+                  >
+                    Keluar
+                  </button>
+                  <button
+                    onclick="startAnalysisFromModal()"
+                    class="medieval-btn py-2 rounded text-xs flex-1"
+                  >
+                    <i class="fas fa-microscope mr-1"></i> Analisis
+                  </button>
+                </div>
+              </div>
+              <div id="analysis-controls" class="hidden flex-col gap-2 mt-2">
+                <div class="bg-[#2b1d0e] p-2 rounded border border-[#5d4037]">
+                  <div class="flex justify-between mb-1">
+                    <span class="text-[10px] text-blue-400">EVAL</span
+                    ><span id="eval-score" class="text-[10px]">0.0</span>
+                  </div>
+                  <div class="h-1 bg-black rounded-full overflow-hidden">
+                    <div
+                      id="eval-fill"
+                      class="h-full bg-white"
+                      style="width: 50%"
+                    ></div>
+                  </div>
+                  <p
+                    id="best-move-text"
+                    class="text-[10px] text-center mt-1 text-[#c5a059]"
+                  >
+                    ...
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -795,7 +1054,7 @@
 
     <script>
       // ==========================================
-      // 1. KONFIGURASI & VARIABEL (JANGAN DIUBAH)
+      // 1. KONFIGURASI & VARIABEL
       // ==========================================
       const firebaseConfig = {
         apiKey: "AIzaSyDmer19KTaijOz3bTdknEEs5dqwKNt6HQg",
@@ -813,7 +1072,6 @@
         db = firebase.firestore(),
         appId = "chess-v3-final";
 
-      // Global Vars
       let currentUser = null,
         currentGameId = null,
         gameData = null;
@@ -848,6 +1106,7 @@
         aiTimeout = null;
       let windowPendingGameType = "human",
         selectedColor = "random";
+      let capturedPieces = { w: [], b: [] };
 
       const isMobile =
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -953,12 +1212,95 @@
             if (f)
               f.style.width = Math.max(5, Math.min(95, 50 + cp / 10)) + "%";
             if (s) s.innerText = (cp / 100).toFixed(2);
+            updateEvalBadge((cp / 100).toFixed(1));
           }
         }
         if (isAnalysisMode && e.data.startsWith("bestmove")) {
           const el = document.getElementById("best-move-text");
           if (el) el.innerText = "Saran: " + e.data.split(" ")[1];
         }
+      }
+
+      function updateMaterialAdvantage() {
+        if (isAnalysisMode) return;
+        const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+        let board = chess.board();
+        let score = 0;
+        board.forEach((row) => {
+          row.forEach((piece) => {
+            if (piece) {
+              let val = values[piece.type];
+              score += piece.color === "w" ? val : -val;
+            }
+          });
+        });
+        if (playerColor === "b") score = -score;
+        updateEvalBadge(score.toFixed(1));
+      }
+
+      function updateEvalBadge(val) {
+        const el = document.getElementById("eval-badge");
+        const mobEl = document.getElementById("mob-eval-badge");
+        let display = parseFloat(val) > 0 ? `+${val}` : val;
+        let cls =
+          parseFloat(val) > 0
+            ? "text-green-500"
+            : parseFloat(val) < 0
+            ? "text-red-500"
+            : "text-gray-400";
+        if (el) {
+          el.innerText = display;
+          el.className = `text-[10px] font-bold mt-1 px-1 rounded bg-black ${cls}`;
+        }
+        if (mobEl) {
+          mobEl.innerText = display;
+          mobEl.className = `text-[9px] font-bold ${cls}`;
+        }
+      }
+
+      function renderCapturedPieces() {
+        const containerMyCaps = document.getElementById("captured-by-me");
+        const containerOppCaps = document.getElementById("captured-by-opp");
+        const mobMyCaps = document.getElementById("mob-captured-by-me");
+        const mobOppCaps = document.getElementById("mob-captured-by-opp");
+
+        if (!containerMyCaps || !containerOppCaps) return;
+
+        const clearContainer = (c) => {
+          if (c) c.innerHTML = "";
+        };
+        clearContainer(containerMyCaps);
+        clearContainer(containerOppCaps);
+        clearContainer(mobMyCaps);
+        clearContainer(mobOppCaps);
+
+        let myTrophiesColor = playerColor === "white" ? "b" : "w";
+        let myLossesColor = playerColor === "white" ? "w" : "b";
+
+        const addPieces = (arr, container) => {
+          if (!container) return;
+          arr.forEach((p) => {
+            let img = document.createElement("img");
+            img.src = getPieceUrl(myTrophiesColor === "w" ? "w" : "b", p);
+            img.className = "captured-piece";
+            container.appendChild(img);
+          });
+        };
+
+        addPieces(capturedPieces[myTrophiesColor], containerMyCaps);
+        addPieces(capturedPieces[myTrophiesColor], mobMyCaps);
+
+        const addLosses = (arr, container) => {
+          if (!container) return;
+          arr.forEach((p) => {
+            let img = document.createElement("img");
+            img.src = getPieceUrl(myLossesColor === "w" ? "w" : "b", p);
+            img.className = "captured-piece";
+            container.appendChild(img);
+          });
+        };
+        addLosses(capturedPieces[myLossesColor], containerOppCaps);
+        addLosses(capturedPieces[myLossesColor], mobOppCaps);
       }
 
       // ==========================================
@@ -1186,6 +1528,8 @@
         });
         drawArrows();
         updateStatusText();
+        updateMaterialAdvantage();
+        renderCapturedPieces();
       }
 
       function setupGameCommon(id, o, n) {
@@ -1198,16 +1542,27 @@
         premoveQueue = [];
         viewHistoryIndex = -1;
         selectedSquare = null;
+        capturedPieces = { w: [], b: [] };
+
         const elO = document.getElementById("opponent-name");
         const elM = document.getElementById("player-name-display");
+        const mobO = document.getElementById("mob-opponent-name");
+        const mobM = document.getElementById("mob-player-name");
+
+        const myName = localStorage.getItem("chess_username");
+
         if (elO) elO.innerText = n;
-        if (elM) elM.innerText = localStorage.getItem("chess_username");
+        if (elM) elM.innerText = myName;
+        if (mobO) mobO.innerText = n;
+        if (mobM) mobM.innerText = myName;
+
         whiteTime = 0;
         blackTime = 0;
         updateTimerDisplay();
         showScreen("game");
+        updateResignButtonState();
 
-        toggleGameOverControls(false); // Reset Tombol UI
+        toggleGameOverControls(false);
 
         document.getElementById("analysis-controls").classList.add("hidden");
         renderBoard();
@@ -1234,6 +1589,11 @@
               document.getElementById("opponent-name").innerText = opp
                 ? opp.name
                 : "Menunggu...";
+            if (document.getElementById("mob-opponent-name"))
+              document.getElementById("mob-opponent-name").innerText = opp
+                ? opp.name
+                : "Menunggu...";
+
             if (gameData.timeControl) selectedTime = gameData.timeControl;
 
             const dbW = gameData.whiteTime;
@@ -1245,6 +1605,7 @@
               if (Math.abs(blackTime - dbB) > 2) blackTime = dbB;
             }
             updateTimerDisplay();
+            updateResignButtonState();
 
             if (gameData.status === "playing") {
               if (
@@ -1255,6 +1616,9 @@
                 const tempChess = new Chess();
                 if (gameData.pgn) tempChess.load_pgn(gameData.pgn);
                 else tempChess.load(gameData.fen);
+
+                recalculateCaptures(tempChess);
+
                 const lastMoveHistory = tempChess.history({ verbose: true });
                 const lastMove = lastMoveHistory[lastMoveHistory.length - 1];
 
@@ -1299,6 +1663,28 @@
           });
       }
 
+      function recalculateCaptures(chessInstance) {
+        capturedPieces = { w: [], b: [] };
+        const startCounts = {
+          w: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
+          b: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
+        };
+        const board = chessInstance.board();
+        board.forEach((r) => {
+          r.forEach((p) => {
+            if (p) {
+              startCounts[p.color][p.type]--;
+            }
+          });
+        });
+        for (let type in startCounts.w) {
+          for (let i = 0; i < startCounts.w[type]; i++)
+            capturedPieces.w.push(type);
+          for (let i = 0; i < startCounts.b[type]; i++)
+            capturedPieces.b.push(type);
+        }
+      }
+
       function startGameLocal(id, o, n) {
         if (gameUnsubscribe) {
           gameUnsubscribe();
@@ -1333,6 +1719,10 @@
         if (chess.turn() === myColor && isSyncReady) {
           const move = chess.move({ from, to, promotion: "q" });
           if (move) {
+            if (move.captured) {
+              let victimColor = move.color === "w" ? "b" : "w";
+              capturedPieces[victimColor].push(move.captured);
+            }
             selectedSquare = null;
             animateMovePiece(from, to, () => {
               clearArrowsAndHighlights();
@@ -1384,6 +1774,10 @@
           promotion: "q",
         });
         if (move) {
+          if (move.captured) {
+            let victimColor = move.color === "w" ? "b" : "w";
+            capturedPieces[victimColor].push(move.captured);
+          }
           premoveQueue.shift();
           animateMovePiece(moveData.from, moveData.to, () => {
             renderBoard();
@@ -1552,29 +1946,53 @@
           return `${m}:${s < 10 ? "0" + s : s}`;
         };
         if (selectedTime === -1) {
-          document.getElementById("timer-self").innerText = "∞";
-          document.getElementById("timer-opponent").innerText = "∞";
+          const els = [
+            "timer-self",
+            "timer-opponent",
+            "mob-timer-self",
+            "mob-timer-opponent",
+          ];
+          els.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = "∞";
+          });
           return;
         }
+
         const elS = document.getElementById("timer-self"),
           elO = document.getElementById("timer-opponent");
+        const mobS = document.getElementById("mob-timer-self"),
+          mobO = document.getElementById("mob-timer-opponent");
+
         if (playerColor === "white") {
-          elS.innerText = fmt(whiteTime);
-          elO.innerText = fmt(blackTime);
+          if (elS) elS.innerText = fmt(whiteTime);
+          if (elO) elO.innerText = fmt(blackTime);
+          if (mobS) mobS.innerText = fmt(whiteTime);
+          if (mobO) mobO.innerText = fmt(blackTime);
         } else {
-          elS.innerText = fmt(blackTime);
-          elO.innerText = fmt(whiteTime);
+          if (elS) elS.innerText = fmt(blackTime);
+          if (elO) elO.innerText = fmt(whiteTime);
+          if (mobS) mobS.innerText = fmt(blackTime);
+          if (mobO) mobO.innerText = fmt(whiteTime);
         }
         const turn = chess.turn();
         const selfTurn =
           (playerColor === "white" && turn === "w") ||
           (playerColor === "black" && turn === "b");
         if (selfTurn) {
-          elS.classList.add("timer-active");
-          elO.classList.remove("timer-active");
+          [elS, mobS].forEach((e) => {
+            if (e) e.classList.add("timer-active");
+          });
+          [elO, mobO].forEach((e) => {
+            if (e) e.classList.remove("timer-active");
+          });
         } else {
-          elO.classList.add("timer-active");
-          elS.classList.remove("timer-active");
+          [elO, mobO].forEach((e) => {
+            if (e) e.classList.add("timer-active");
+          });
+          [elS, mobS].forEach((e) => {
+            if (e) e.classList.remove("timer-active");
+          });
         }
       }
       function handleRightClickDown(e, s) {
@@ -1688,7 +2106,7 @@
       }
       function makeAIMove() {
         if (chess.game_over() || chess.in_threefold_repetition()) return;
-        document.getElementById("game-status").innerText = "AI Berpikir...";
+        // document.getElementById("game-status").innerText = "AI Berpikir...";
         if (stockfishWorker) {
           stockfishWorker.postMessage("position fen " + chess.fen());
           stockfishWorker.postMessage(
@@ -1714,6 +2132,10 @@
       function finalizeAIMove() {
         const lastMove = chess.history({ verbose: true }).pop();
         if (lastMove) {
+          if (lastMove.captured) {
+            let victimColor = lastMove.color === "w" ? "b" : "w";
+            capturedPieces[victimColor].push(lastMove.captured);
+          }
           chess.undo();
           renderBoard();
           chess.move(lastMove);
@@ -1902,9 +2324,15 @@
         chess.load_pgn(game.pgn);
         viewHistoryIndex = -1;
         document.getElementById("opponent-name").innerText = game.opponent;
+        document.getElementById("mob-opponent-name").innerText = game.opponent;
         showScreen("game");
 
-        toggleGameOverControls(true); // Tampilkan menu analisis
+        toggleGameOverControls(true);
+
+        document.getElementById("captured-by-me").innerHTML = "";
+        document.getElementById("captured-by-opp").innerHTML = "";
+        document.getElementById("mob-captured-by-me").innerHTML = "";
+        document.getElementById("mob-captured-by-opp").innerHTML = "";
 
         document.getElementById("analysis-controls").classList.remove("hidden");
         renderBoard();
@@ -2042,7 +2470,7 @@
             : "Posisi Seimbang (Draw).";
         document.getElementById("modal-gameover").classList.remove("hidden");
 
-        toggleGameOverControls(true); // Aktifkan tombol analisis/rematch
+        toggleGameOverControls(true);
 
         playSound("end");
         const h = JSON.parse(localStorage.getItem("chess_history") || "[]");
@@ -2111,20 +2539,48 @@
             });
         });
       }
-      function confirmResign() {
-        if (
-          document.getElementById("game-status").innerText === "Menunggu..."
-        ) {
-          db.collection("artifacts")
-            .doc(appId)
-            .collection("public")
-            .doc("data")
-            .collection("games")
-            .doc(currentGameId)
-            .delete();
-          exitGame();
-          return;
+
+      function handleResignOrCancel() {
+        if (gameData && gameData.status === "waiting") {
+          showModalConfirm(
+            "BATALKAN?",
+            "Batalkan pertempuran ini?",
+            async () => {
+              if (currentGameId) {
+                await db
+                  .collection("artifacts")
+                  .doc(appId)
+                  .collection("public")
+                  .doc("data")
+                  .collection("games")
+                  .doc(currentGameId)
+                  .delete();
+              }
+              exitGame();
+            }
+          );
+        } else {
+          confirmResign();
         }
+      }
+
+      function updateResignButtonState() {
+        const isWaiting = gameData && gameData.status === "waiting";
+        const txt = isWaiting ? "BATALKAN" : "MENYERAH";
+        const icon = isWaiting ? "fa-times" : "fa-flag";
+
+        const btnMobText = document.getElementById("btn-resign-text-mobile");
+        const btnMobIcon = document.querySelector("#btn-resign-mobile i");
+        const btnDesk = document.querySelector("#btn-resign-desktop span");
+        const iconDesk = document.querySelector("#btn-resign-desktop i");
+
+        if (btnMobText) btnMobText.innerText = txt;
+        if (btnMobIcon) btnMobIcon.className = `fas ${icon} mb-1 block`;
+        if (btnDesk) btnDesk.innerText = txt;
+        if (iconDesk) iconDesk.className = `fas ${icon} mr-1`;
+      }
+
+      function confirmResign() {
         showModalConfirm("MENYERAH?", "YAKIN?", () => {
           handleGameOver("loss");
           if (!isAI)
@@ -2191,21 +2647,26 @@
       }
       function updateStatusText() {
         const el = document.getElementById("turn-indicator");
-        if (!el) return;
+        const mobEl = document.getElementById("mob-turn-indicator");
+        if (!el || !mobEl) return;
         if (viewHistoryIndex !== -1) {
           el.innerText = "REPLAY";
           el.className = "text-xs font-bold text-yellow-500";
+          mobEl.innerText = "REPLAY";
+          mobEl.className = "text-[9px] font-bold text-yellow-500";
           return;
         }
         if (chess.turn() === boardOrientation.charAt(0)) {
           el.innerText = "GILIRAN ANDA";
           el.className = "text-xs font-bold text-green-400 animate-pulse";
+          mobEl.innerText = "GILIRAN ANDA";
+          mobEl.className = "text-[9px] font-bold text-green-400 animate-pulse";
         } else {
           el.innerText = "GILIRAN LAWAN";
           el.className = "text-xs font-bold text-slate-500";
+          mobEl.innerText = "GILIRAN LAWAN";
+          mobEl.className = "text-[9px] font-bold text-slate-500";
         }
-        const statusEl = document.getElementById("game-status");
-        if (statusEl) statusEl.innerText = chess.in_check() ? "SKAK!" : "";
       }
 
       // ==========================================
@@ -2213,7 +2674,6 @@
       // ==========================================
 
       async function initApp() {
-        // Load Stockfish Worker
         fetch(
           "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js"
         )
@@ -2259,62 +2719,152 @@
         });
       }
 
+      // GANTI FUNCTION updateMoveHistoryUI (Sekitar Line 1240) DENGAN INI:
+
       function updateMoveHistoryUI() {
         const tbody = document.getElementById("move-history");
+        const mobilePgn = document.getElementById("mobile-pgn-display");
+
         if (!tbody) return;
 
         tbody.innerHTML = "";
+        let mobileHtml = "";
         const history = chess.history();
+
         for (let i = 0; i < history.length; i += 2) {
           const moveWhite = history[i];
           const moveBlack = history[i + 1] || "";
           const moveNumber = i / 2 + 1;
+
           const tr = document.createElement("tr");
-          tr.className = "border-b border-[#3e2723] hover:bg-[#2b1d0e]";
+
+          // CLASS BARU:
+          // Mobile/Tablet: flex, shrink-0 (agar scroll samping), border-r (pemisah antar langkah)
+          // Desktop (lg): table-row, border-b (pemisah antar baris ke bawah)
+          tr.className =
+            "flex shrink-0 items-center border-r border-[#5d4037] lg:border-r-0 lg:border-b lg:border-[#3e2723] hover:bg-[#2b1d0e] lg:table-row";
+
+          // Kita buat tampilan Mobile lebih ringkas (px-2), Desktop lebih lega (lg:px-3)
           tr.innerHTML = `
-            <td class="px-3 py-2 text-stone-500 w-10 border-r border-[#3e2723] text-center">${moveNumber}.</td>
-            <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveWhite}</td>
-            <td class="px-3 py-2 cursor-pointer hover:text-white font-bold text-[#e6d2b5]">${moveBlack}</td>
-        `;
+      <td class="px-2 py-2 lg:px-3 text-stone-500 font-bold text-xs lg:text-sm border-r border-[#3e2723] lg:border-none text-center block lg:table-cell min-w-[30px]">
+        ${moveNumber}.
+      </td>
+      <td class="px-2 py-2 lg:px-3 cursor-pointer hover:text-white font-bold text-[#e6d2b5] block lg:table-cell whitespace-nowrap">
+        ${moveWhite}
+      </td>
+      <td class="px-2 py-2 lg:px-3 cursor-pointer hover:text-white font-bold text-[#e6d2b5] block lg:table-cell whitespace-nowrap">
+        ${moveBlack}
+      </td>
+    `;
+
           tbody.appendChild(tr);
+          mobileHtml += `${moveNumber}. ${moveWhite} ${moveBlack} `;
         }
+
+        // Auto-scroll ke kanan mentok untuk Mobile/Tablet saat ada langkah baru
         if (viewHistoryIndex === -1) {
           const container = document.getElementById("pgn-container");
-          if (container) container.scrollTop = container.scrollHeight;
+          if (container) {
+            // Cek lebar layar, jika desktop scroll ke bawah, jika mobile scroll ke samping
+            if (window.innerWidth >= 1024) {
+              container.scrollTop = container.scrollHeight;
+            } else {
+              container.scrollLeft = container.scrollWidth;
+            }
+          }
+        }
+
+        // Update text view (cadangan)
+        if (mobilePgn) {
+          mobilePgn.innerText = mobileHtml;
         }
       }
 
-      // UI Helpers untuk Toggle Tombol Game Over
       function toggleGameOverControls(isGameOver) {
+        // Ambil elemen-elemen kontrol
         const mobilePlay = document.getElementById("mobile-play-controls");
         const mobilePost = document.getElementById("mobile-post-game-controls");
         const desktopPlay = document.getElementById("desktop-play-controls");
         const desktopPost = document.getElementById(
           "desktop-post-game-controls"
         );
+        const mobilePgn = document.getElementById("mobile-pgn-display");
+
+        // Ambil elemen PGN & Captured
+        const pgnHeader = document.getElementById("pgn-header");
+        const pgnContainer = document.getElementById("pgn-container");
+        const captureAreas = document.querySelectorAll(
+          ".mobile-captures, .captured-container"
+        );
+
         if (isGameOver) {
+          // === KONDISI GAME SELESAI (GAME OVER) ===
+
+          // 1. Tombol Navigasi Mobile
           mobilePlay.classList.add("hidden");
           mobilePost.classList.remove("hidden");
-          mobilePost.classList.add("flex");
+
+          // 2. Tombol Navigasi Desktop (PERBAIKAN DI SINI)
+          // Hapus "md:grid" agar tidak memaksa tampil, lalu tambahkan "hidden"
+          desktopPlay.classList.remove("md:grid");
           desktopPlay.classList.add("hidden");
+
+          // Tampilkan tombol "Analisis/Keluar" desktop
           desktopPost.classList.remove("hidden");
-          desktopPost.classList.add("flex");
+          desktopPost.classList.add("flex"); // Pastikan dia muncul rapi
+
+          // 3. Mobile PGN Text (paling bawah)
+          if (mobilePgn) mobilePgn.classList.remove("hidden");
+
+          // 4. Riwayat Langkah (Desktop Tetap Ada, Mobile Hilang)
+          if (pgnHeader) {
+            pgnHeader.classList.remove("flex");
+            pgnHeader.classList.add("hidden", "lg:flex");
+          }
+          if (pgnContainer) {
+            pgnContainer.classList.add("hidden", "lg:block");
+          }
+
+          // 5. Sembunyikan Bidak (Area Timer Bersih)
+          captureAreas.forEach((el) => el.classList.add("hidden"));
         } else {
+          // === KONDISI GAME BERJALAN / RESET ===
+
+          // 1. Tombol Navigasi Mobile
           mobilePlay.classList.remove("hidden");
           mobilePost.classList.add("hidden");
-          mobilePost.classList.remove("flex");
+
+          // 2. Tombol Navigasi Desktop (KEMBALIKAN)
+          // Kembalikan "md:grid" agar layoutnya benar lagi
           desktopPlay.classList.remove("hidden");
+          desktopPlay.classList.add("md:grid");
+
+          // Sembunyikan tombol post-game
           desktopPost.classList.add("hidden");
           desktopPost.classList.remove("flex");
+
+          // 3. Mobile PGN Text
+          if (mobilePgn) mobilePgn.classList.add("hidden");
+
+          // 4. Kembalikan Riwayat
+          if (pgnHeader) {
+            pgnHeader.classList.remove("hidden", "lg:flex");
+            pgnHeader.classList.add("flex");
+          }
+          if (pgnContainer) {
+            pgnContainer.classList.remove("hidden", "lg:block");
+          }
+
+          // 5. Tampilkan Kembali Bidak
+          captureAreas.forEach((el) => el.classList.remove("hidden"));
         }
       }
 
       function startAnalysisFromModal() {
         closeModal("modal-gameover");
         isAnalysisMode = true;
-        document.getElementById("play-controls")?.classList.add("hidden"); // Hide regular controls if exposed
+        document.getElementById("play-controls")?.classList.add("hidden");
         document.getElementById("analysis-controls").classList.remove("hidden");
-        // Trigger Stockfish analysis on current position
         if (stockfishWorker) {
           stockfishWorker.postMessage("position fen " + chess.fen());
           stockfishWorker.postMessage("go depth 20");
@@ -2322,14 +2872,11 @@
       }
 
       function exitGame() {
-        // Stop timers and AI
         if (timerInterval) clearInterval(timerInterval);
         if (gameUnsubscribe) {
           gameUnsubscribe();
           gameUnsubscribe = null;
         }
-
-        // Return to lobby
         showScreen("lobby");
         currentGameId = null;
         gameData = null;
@@ -2360,11 +2907,8 @@
         }
       }
 
-      // Flip board visual only
       function flipBoard() {
         const boardEl = document.getElementById("chess-board");
-        // Logic handled by re-rendering with different orientation global var?
-        // Simple logic for visual flip:
         if (boardOrientation === "white") boardOrientation = "black";
         else boardOrientation = "white";
         renderBoard();
