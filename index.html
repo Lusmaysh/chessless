@@ -2146,7 +2146,7 @@
             else playSound("move");
             checkGameOver(true);
             if (chess.turn() === playerColor.charAt(0)) startTimer();
-            document.getElementById("game-status").innerText = "";
+            // document.getElementById("game-status").innerText = "";
             setTimeout(processPremoves, 200);
           });
         } else {
