@@ -26,12 +26,6 @@
     />
 
     <style>
-      @media (max-width: 1023px) {
-        .sidebar-right {
-          display: none !important;
-        }
-      }
-
       /* Secara default sembunyikan elemen ini di layar kecil */
       @media (max-width: 768px) {
         #desktop-play-controls {
@@ -267,6 +261,8 @@
         .chess-board {
           aspect-ratio: 1 / 1;
 
+          /* width: 100vmax;
+          height: 100vmax; */
           width: 100%;
           height: auto;
           max-width: 100%;
@@ -275,6 +271,11 @@
           border: none;
           border-top: 2px solid #3e2723;
           border-bottom: 2px solid #3e2723;
+          transition: all 0.3s ease;
+        }
+
+        .sidebar-right {
+          display: none !important;
         }
       }
 
@@ -435,6 +436,13 @@
         font-size: 0.85rem;
         color: #e6d2b5;
         border-top: 1px dashed #3e2723;
+      }
+
+      @media (max-width: 1023px) {
+        /* Sembunyikan daftar bidak yang dimakan di HP */
+        .mobile-captures {
+          display: none !important;
+        }
       }
 
       /* Mobile Captured Area (Inline) */
@@ -1270,8 +1278,9 @@
       }
 
       function renderCapturedPieces() {
-        const containerMyCaps = document.getElementById("captured-by-me");
-        const containerOppCaps = document.getElementById("captured-by-opp");
+        const containerMyCaps = document.getElementById("captured-by-opp");
+        const containerOppCaps = document.getElementById("captured-by-me");
+
         const mobMyCaps = document.getElementById("mob-captured-by-me");
         const mobOppCaps = document.getElementById("mob-captured-by-opp");
 
